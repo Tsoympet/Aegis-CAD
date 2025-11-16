@@ -1,43 +1,26 @@
-#pragma once
-#include <memory>
-#include <vector>
-#include <string>
-#include <TopoDS_Shape.hxx>
+#include "FeatureOps.h"
+#include <BRepPrimAPI_MakeBox.hxx>
+#include <BRepPrimAPI_MakeCylinder.hxx>
+#include <BRepPrimAPI_MakeSphere.hxx>
 
-// --------------------
-// Parametric feature definitions
-// --------------------
-enum class FeatureKind {
-    SketchBase,
-    Extrude,
-    Cut,
-    Revolve,
-    Fillet,
-    Chamfer,
-    Shell,
-    Draft
-};
-
-struct FeatureNode {
-    int         id {0};
-    FeatureKind kind {FeatureKind::SketchBase};
-    std::string name;
-    int         parentId {0};
-};
-
-// --------------------
-// Feature operations API
-// --------------------
-class FeatureOps
+std::shared_ptr<TopoDS_Shape> FeatureOps::build(const std::vector<FeatureNode>& tree)
 {
-public:
-    FeatureOps() = default;
+    (void)tree;
+    // TODO: implement full parametric replay of the feature history
+    return nullptr;
+}
 
-    // Parametric build (future replay of the feature tree)
-    std::shared_ptr<TopoDS_Shape> build(const std::vector<FeatureNode>& tree);
+TopoDS_Shape FeatureOps::makeBox(double dx, double dy, double dz)
+{
+    return BRepPrimAPI_MakeBox(dx, dy, dz).Shape();
+}
 
-    // Direct modeling helpers (usable from MainWindow / OccView)
-    static TopoDS_Shape makeBox(double dx, double dy, double dz);
-    static TopoDS_Shape makeCylinder(double radius, double height);
-    static TopoDS_Shape makeSphere(double radius);
-};
+TopoDS_Shape FeatureOps::makeCylinder(double r, double h)
+{
+    return BRepPrimAPI_MakeCylinder(r, h).Shape();
+}
+
+TopoDS_Shape FeatureOps::makeSphere(double r)
+{
+    return BRepPrimAPI_MakeSphere(r).Shape();
+}
