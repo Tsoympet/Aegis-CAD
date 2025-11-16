@@ -1,0 +1,12 @@
+<RCC>
+  <qresource prefix="/icons">
+    <file>icons/app_icon.png</file>
+    <file>icons/toolbar_extrude.svg</file>
+    <file>icons/toolbar_fillet.svg</file>
+    <file>icons/toolbar_analysis.svg</file>
+    <file>icons/toolbar_ai.svg</file>
+    <file>icons/toolbar_assembly.svg</file>
+    <file>icons/toolbar_cam.svg</file>
+    <file>icons/toolbar_drafting.svg</file>
+  </qresource>
+</RCC>
