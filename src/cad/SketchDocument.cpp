@@ -2,9 +2,7 @@
 
 int SketchDocument::addPoint(double x, double y)
 {
-    SketchPoint p;
-    p.x = x;
-    p.y = y;
+    SketchPoint p {x, y};
     m_points.push_back(p);
     return static_cast<int>(m_points.size() - 1);
 }
