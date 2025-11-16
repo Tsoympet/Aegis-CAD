@@ -1,52 +1,44 @@
-#include "MainWindow.h"
-#include <QMenuBar>
-#include <QStatusBar>
-#include "ui/OccView.h"
-#include "ui/AegisAssistantDock.h"
-#include "ui/PythonConsoleDock.h"
-#include "ui/ReverseEngineerDock.h"
+#pragma once
+#include <QMainWindow>
 
-MainWindow::MainWindow(QWidget* parent)
-    : QMainWindow(parent)
+class OccView;
+class AegisAssistantDock;
+class PythonConsoleDock;
+class ReverseEngineerDock;
+
+class QAction;
+class QLabel;
+
+class MainWindow : public QMainWindow
 {
-    m_view = new OccView(this);
-    setCentralWidget(m_view);
+    Q_OBJECT
+public:
+    explicit MainWindow(QWidget* parent = nullptr);
+    ~MainWindow() override;
 
-    m_aiDock  = new AegisAssistantDock(this);
-    m_pyDock  = new PythonConsoleDock(this);
-    m_revDock = new ReverseEngineerDock(this);
+private slots:
+    void newSketch();
+    void importSTEP();
+    void exportGLTF();
+    void runAnalysis();
+    void showAIDock();
 
-    createMenus();
-    createDocks();
-    statusBar()->showMessage("Ready");
-    setWindowTitle("AegisCAD");
-}
+private:
+    void createMenus();
+    void createToolBar();
+    void createDocks();
+    void createStatusBar();
 
-MainWindow::~MainWindow() = default;
+    OccView*             m_view = nullptr;
+    AegisAssistantDock*  m_aiDock = nullptr;
+    PythonConsoleDock*   m_pyDock = nullptr;
+    ReverseEngineerDock* m_revDock = nullptr;
 
-void MainWindow::createMenus()
-{
-    auto* tools = menuBar()->addMenu(tr("Tools"));
-    tools->addAction(tr("Aegis AI"), [this]{
-        m_aiDock->show();
-        m_aiDock->raise();
-    });
-    tools->addAction(tr("Python Console"), [this]{
-        m_pyDock->show();
-        m_pyDock->raise();
-    });
-    tools->addAction(tr("AI Reverse Engineer"), [this]{
-        m_revDock->show();
-        m_revDock->raise();
-    });
-}
+    QAction* m_actionNew = nullptr;
+    QAction* m_actionImport = nullptr;
+    QAction* m_actionExport = nullptr;
+    QAction* m_actionAnalyze = nullptr;
+    QAction* m_actionAI = nullptr;
 
-void MainWindow::createDocks()
-{
-    addDockWidget(Qt::RightDockWidgetArea, m_aiDock);
-    m_aiDock->hide();
-    addDockWidget(Qt::BottomDockWidgetArea, m_pyDock);
-    m_pyDock->hide();
-    addDockWidget(Qt::RightDockWidgetArea, m_revDock);
-    m_revDock->hide();
-}
+    QLabel*  m_statusLabel = nullptr;
+};
