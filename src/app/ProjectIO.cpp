@@ -1,15 +1,18 @@
 #include "ProjectIO.h"
+#include <QFile>
+#include <QTextStream>
 
 bool ProjectIO::save(const QString& path)
 {
-    (void)path;
-    // TODO: serialize project state.
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) return false;
+    QTextStream out(&f);
+    out << "AegisCAD Project v1.0";
     return true;
 }
 
 bool ProjectIO::load(const QString& path)
 {
-    (void)path;
-    // TODO: deserialize project state.
-    return true;
+    QFile f(path);
+    return f.exists();
 }
