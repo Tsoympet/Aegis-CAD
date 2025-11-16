@@ -1,11 +1,38 @@
 #pragma once
 #include <QWidget>
+#include <AIS_InteractiveContext.hxx>
+#include <V3d_View.hxx>
+#include <Graphic3d_GraphicDriver.hxx>
+#include <Aspect_Handle.hxx>
+#include <memory>
 
 class OccView : public QWidget
 {
     Q_OBJECT
 public:
     explicit OccView(QWidget* parent = nullptr);
+    ~OccView() override;
+
+    void displayShape(const TopoDS_Shape& shape);
+    void clearScene();
+    void fitAll();
+
 protected:
-    void paintEvent(QPaintEvent* ev) override;
+    void paintEvent(QPaintEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void wheelEvent(QWheelEvent* event) override;
+
+private:
+    void initViewer();
+    void updateView();
+
+    Handle(Aspect_DisplayConnection)     m_displayConnection;
+    Handle(Graphic3d_GraphicDriver)      m_graphicDriver;
+    Handle(V3d_Viewer)                   m_viewer;
+    Handle(V3d_View)                     m_view;
+    Handle(AIS_InteractiveContext)       m_context;
+
+    QPoint m_lastMousePos;
 };
