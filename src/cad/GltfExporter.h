@@ -1,7 +1,6 @@
 #pragma once
 #include <string>
-
-class TopoDS_Shape;
+#include <TopoDS_Shape.hxx>
 
 class GltfExporter
 {
