@@ -1,1 +1,128 @@
-{"name": "ship_deck", "version": 1}
+{
+  "project": {
+    "name": "Ship Deck Structural Assembly",
+    "version": "1.0",
+    "author": "AegisCAD Demo",
+    "created": "2025-11-22T00:00:00Z",
+    "units": "mm",
+    "description": "Demonstration project for ship deck assembly with hull interface, deck plates, supports, and superstructure. Includes static wave load analysis and deck deflection motion simulation."
+  },
+
+  "parts": [
+    {
+      "name": "hull_section",
+      "file": "../models/hull_section.brep",
+      "material": "Marine_Steel",
+      "color": [0.35, 0.35, 0.4],
+      "transform": { "translation": [0, 0, 0], "rotation": [0, 0, 0] }
+    },
+    {
+      "name": "deck_plate",
+      "file": "../models/deck_plate.brep",
+      "material": "Marine_Steel",
+      "color": [0.5, 0.5, 0.55],
+      "transform": { "translation": [0, 0, 3000], "rotation": [0, 0, 0] }
+    },
+    {
+      "name": "deck_supports",
+      "file": "../models/deck_supports.brep",
+      "material": "High_Tensile_Steel",
+      "color": [0.4, 0.4, 0.45],
+      "transform": { "translation": [0, 0, 0], "rotation": [0, 0, 0] }
+    },
+    {
+      "name": "superstructure",
+      "file": "../models/superstructure.brep",
+      "material": "Aluminum_Alloy",
+      "color": [0.6, 0.6, 0.65],
+      "transform": { "translation": [0, 0, 6000], "rotation": [0, 0, 0] }
+    },
+    {
+      "name": "mast",
+      "file": "../models/mast.brep",
+      "material": "Aluminum_Alloy",
+      "color": [0.7, 0.7, 0.75],
+      "transform": { "translation": [0, 0, 9000], "rotation": [0, 0, 0] }
+    }
+  ],
+
+  "constraints": [
+    {
+      "type": "Mate",
+      "partA": "hull_section",
+      "partB": "deck_supports",
+      "value": 0.0,
+      "description": "Mounts deck support frames to hull section."
+    },
+    {
+      "type": "Mate",
+      "partA": "deck_supports",
+      "partB": "deck_plate",
+      "value": 0.0,
+      "description": "Attaches deck plate to support frame."
+    },
+    {
+      "type": "Mate",
+      "partA": "deck_plate",
+      "partB": "superstructure",
+      "value": 0.0,
+      "description": "Mounts superstructure to deck plate."
+    },
+    {
+      "type": "Fixed",
+      "partA": "hull_section",
+      "partB": "mast",
+      "value": 0.0,
+      "description": "Fixes mast base to hull frame."
+    }
+  ],
+
+  "materials": [
+    {
+      "name": "Marine_Steel",
+      "density": 7850,
+      "yield_strength": 355,
+      "young_modulus": 210000,
+      "poisson_ratio": 0.3
+    },
+    {
+      "name": "High_Tensile_Steel",
+      "density": 7800,
+      "yield_strength": 500,
+      "young_modulus": 210000,
+      "poisson_ratio": 0.3
+    },
+    {
+      "name": "Aluminum_Alloy",
+      "density": 2700,
+      "yield_strength": 240,
+      "young_modulus": 70000,
+      "poisson_ratio": 0.33
+    }
+  ],
+
+  "analysis": {
+    "type": "Wave_Load_Stress",
+    "description": "Simulates structural stress distribution on ship deck under sinusoidal wave loads.",
+    "wave_amplitude_m": 2.5,
+    "wave_frequency_hz": 0.2,
+    "fixed_parts": ["hull_section"],
+    "results_target": "deck_plate",
+    "output": {
+      "stress_map": "output/deck_stress.csv",
+      "deflection_field": "output/deck_deflection.vtk"
+    }
+  },
+
+  "motion": {
+    "oscillation": {
+      "deck_plate": {
+        "axis": [0, 1, 0],
+        "amplitude_deg": 4,
+        "frequency_hz": 0.25
+      }
+    },
+    "animation_length_s": 20
+  }
+}
+
