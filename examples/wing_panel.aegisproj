@@ -1,1 +1,137 @@
-{"name": "wing_panel", "version": 1}
+{
+  "project": {
+    "name": "Aircraft Wing Panel Assembly",
+    "version": "1.0",
+    "author": "AegisCAD Demo",
+    "created": "2025-11-22T00:00:00Z",
+    "units": "mm",
+    "description": "Demonstration of an aircraft wing panel assembly including spars, ribs, skin, and control surfaces. Includes aerodynamic load case analysis and flap motion simulation."
+  },
+
+  "parts": [
+    {
+      "name": "main_spar",
+      "file": "../models/main_spar.brep",
+      "material": "Aluminum_7075_T6",
+      "color": [0.7, 0.7, 0.72],
+      "transform": { "translation": [0, 0, 0], "rotation": [0, 0, 0] }
+    },
+    {
+      "name": "rear_spar",
+      "file": "../models/rear_spar.brep",
+      "material": "Aluminum_7075_T6",
+      "color": [0.65, 0.65, 0.7],
+      "transform": { "translation": [0, -1200, 0], "rotation": [0, 0, 0] }
+    },
+    {
+      "name": "ribs",
+      "file": "../models/wing_ribs.brep",
+      "material": "Aluminum_7075_T6",
+      "color": [0.6, 0.6, 0.65],
+      "transform": { "translation": [0, 0, 0], "rotation": [0, 0, 0] }
+    },
+    {
+      "name": "wing_skin",
+      "file": "../models/wing_skin.brep",
+      "material": "Composite_Carbon_Epoxy",
+      "color": [0.5, 0.5, 0.52],
+      "transform": { "translation": [0, 0, 0], "rotation": [0, 0, 0] }
+    },
+    {
+      "name": "flap",
+      "file": "../models/flap.brep",
+      "material": "Composite_Carbon_Epoxy",
+      "color": [0.4, 0.4, 0.45],
+      "transform": { "translation": [0, -1300, -100], "rotation": [0, 0, 0] }
+    },
+    {
+      "name": "aileron",
+      "file": "../models/aileron.brep",
+      "material": "Composite_Carbon_Epoxy",
+      "color": [0.35, 0.35, 0.4],
+      "transform": { "translation": [0, -1100, -100], "rotation": [0, 0, 0] }
+    }
+  ],
+
+  "constraints": [
+    {
+      "type": "Mate",
+      "partA": "main_spar",
+      "partB": "ribs",
+      "value": 0.0,
+      "description": "Attaches ribs to the main spar structure."
+    },
+    {
+      "type": "Mate",
+      "partA": "rear_spar",
+      "partB": "ribs",
+      "value": 0.0,
+      "description": "Attaches ribs to rear spar."
+    },
+    {
+      "type": "Mate",
+      "partA": "ribs",
+      "partB": "wing_skin",
+      "value": 0.0,
+      "description": "Mounts skin panels on top of ribs."
+    },
+    {
+      "type": "Revolute",
+      "partA": "wing_skin",
+      "partB": "flap",
+      "axis": [1, 0, 0],
+      "center": [0, -1300, -100],
+      "limit": { "min": -10, "max": 40 },
+      "value": 0.0,
+      "description": "Allows flap rotation for lift control."
+    },
+    {
+      "type": "Revolute",
+      "partA": "wing_skin",
+      "partB": "aileron",
+      "axis": [1, 0, 0],
+      "center": [0, -1100, -100],
+      "limit": { "min": -15, "max": 15 },
+      "value": 0.0,
+      "description": "Aileron rotation for roll control."
+    }
+  ],
+
+  "materials": [
+    {
+      "name": "Aluminum_7075_T6",
+      "density": 2810,
+      "yield_strength": 505,
+      "young_modulus": 71000,
+      "poisson_ratio": 0.33
+    },
+    {
+      "name": "Composite_Carbon_Epoxy",
+      "density": 1600,
+      "yield_strength": 900,
+      "young_modulus": 135000,
+      "poisson_ratio": 0.28
+    }
+  ],
+
+  "analysis": {
+    "type": "Aerodynamic_Load",
+    "description": "Simulates distributed aerodynamic load across wing skin due to 2.5g maneuver.",
+    "dynamic_pressure_Pa": 4500,
+    "angle_of_attack_deg": 5,
+    "fixed_parts": ["main_spar", "rear_spar"],
+    "results_target": "wing_skin",
+    "output": {
+      "stress_map": "output/wing_stress.csv",
+      "deflection_field": "output/wing_deflection.vtk"
+    }
+  },
+
+  "motion": {
+    "revolute": {
+      "flap": { "axis": [1, 0, 0], "speed_deg_s": 10 },
+      "aileron": { "axis": [1, 0, 0], "speed_deg_s": 15 }
+    },
+    "animation_length_s": 8
+  }
+}
