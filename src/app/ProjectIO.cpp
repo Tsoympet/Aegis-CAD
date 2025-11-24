@@ -9,11 +9,13 @@ bool ProjectIO::saveProject(const QString& filePath,
                             const QJsonObject& cadState,
                             const QJsonObject& analysisState,
                             const PartContext& aiContext,
-                            const QVector<QString>& aiConsoleLog)
+                            const QVector<QString>& aiConsoleLog,
+                            const QImage& thumbnail,
+                            const QString& thumbFileName)
 {
     QJsonObject root;
     root["project_name"] = cadState.value("name").toString("Untitled");
-    root["version"] = "1.0";
+    root["version"] = "1.1";
     root["last_saved"] = QDateTime::currentDateTime().toString(Qt::ISODate);
     root["cad_state"] = cadState;
     root["analysis_state"] = analysisState;
@@ -24,6 +26,12 @@ bool ProjectIO::saveProject(const QString& filePath,
         logArray.append(line);
     root["ai_console_log"] = logArray;
 
+    // Save thumbnail image beside project
+    QFileInfo fi(filePath);
+    QString thumbPath = fi.path() + "/" + thumbFileName;
+    thumbnail.save(thumbPath, "PNG");
+    root["thumbnail_path"] = thumbFileName;
+
     return writeJsonFile(filePath, root);
 }
 
@@ -31,7 +39,8 @@ bool ProjectIO::loadProject(const QString& filePath,
                             QJsonObject& cadState,
                             QJsonObject& analysisState,
                             PartContext& aiContext,
-                            QVector<QString>& aiConsoleLog)
+                            QVector<QString>& aiConsoleLog,
+                            QString& thumbPath)
 {
     QJsonObject root = readJsonFile(filePath);
     if (root.isEmpty()) return false;
@@ -49,9 +58,14 @@ bool ProjectIO::loadProject(const QString& filePath,
             aiConsoleLog.append(v.toString());
     }
 
+    thumbPath = root.value("thumbnail_path").toString();
+    if (thumbPath.isEmpty()) thumbPath = "project_thumbnail.png";
+
     qDebug() << "Loaded project:" << filePath
              << "| AI log lines:" << aiConsoleLog.size()
-             << "| Context:" << aiContext.name;
+             << "| Context:" << aiContext.name
+             << "| Thumbnail:" << thumbPath;
+
     return true;
 }
 
@@ -62,10 +76,9 @@ QJsonObject ProjectIO::readJsonFile(const QString& path)
         qWarning() << "Failed to open" << path;
         return {};
     }
-    const QByteArray data = file.readAll();
-    file.close();
     QJsonParseError err;
-    const QJsonDocument doc = QJsonDocument::fromJson(data, &err);
+    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &err);
+    file.close();
     if (err.error != QJsonParseError::NoError) {
         qWarning() << "JSON parse error:" << err.errorString();
         return {};
@@ -80,7 +93,7 @@ bool ProjectIO::writeJsonFile(const QString& path, const QJsonObject& obj)
         qWarning() << "Failed to write" << path;
         return false;
     }
-    const QJsonDocument doc(obj);
+    QJsonDocument doc(obj);
     file.write(doc.toJson(QJsonDocument::Indented));
     file.close();
     return true;
