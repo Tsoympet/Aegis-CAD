@@ -1,13 +1,22 @@
 #pragma once
 #include <QApplication>
-#include <QTranslator>
+#include <QString>
+#include <memory>
 
-class AegisApp : public QApplication
+class MainWindow;
+
+class AegisApp
 {
 public:
     AegisApp(int& argc, char** argv);
+    ~AegisApp();
+
+    int run();
 
 private:
-    void loadTranslations();
-    QTranslator m_translator;
+    QApplication m_app;
+    std::unique_ptr<MainWindow> m_mainWindow;
+
+    void initStyle();
+    void initOpenCascade();
 };
