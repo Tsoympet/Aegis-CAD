@@ -1,21 +1,22 @@
-#include "AegisApp.h"
-#include <QLocale>
-#include <QDebug>
+#pragma once
+#include <QApplication>
+#include <QString>
+#include <memory>
 
-AegisApp::AegisApp(int& argc, char** argv)
-    : QApplication(argc, argv)
-{
-    setApplicationName("AegisCAD");
-    setOrganizationName("AegisCAD Project");
-    setApplicationVersion("1.0.0");
-    loadTranslations();
-}
+class MainWindow;
 
-void AegisApp::loadTranslations()
+class AegisApp
 {
-    const QString locale = QLocale::system().name();
-    if (m_translator.load("aegiscad_" + locale, ":/translations/")) {
-        installTranslator(&m_translator);
-        qInfo() << "Loaded translation for" << locale;
-    }
-}
+public:
+    AegisApp(int& argc, char** argv);
+    ~AegisApp();
+
+    int run();
+
+private:
+    QApplication m_app;
+    std::unique_ptr<MainWindow> m_mainWindow;
+
+    void initStyle();
+    void initOpenCascade();
+};
