@@ -10,29 +10,49 @@
 #include <QStatusBar>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QApplication>
+#include <QDebug>
+#include <QLabel>
+
+extern bool g_safeMode;
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
-    setWindowTitle("AegisCAD");
+    setWindowTitle(g_safeMode ? "AegisCAD (Safe Mode)" : "AegisCAD");
     resize(1280, 800);
 
+    // --- Core Viewer ---
     m_view = new OccView(this);
     setCentralWidget(m_view);
 
-    m_aiDock  = new AegisAssistantDock(this);
-    m_pyDock  = new PythonConsoleDock(this);
-    m_revDock = new ReverseEngineerDock(this);
+    // --- Optional Docks ---
+    if (!g_safeMode)
+    {
+        m_aiDock  = new AegisAssistantDock(this);
+        m_pyDock  = new PythonConsoleDock(this);
+        m_revDock = new ReverseEngineerDock(this);
+    }
 
     createMenus();
     createToolBar();
     createDocks();
     createStatusBar();
+
+    if (g_safeMode)
+    {
+        Logging::info("MainWindow initialized in Safe Mode (AI + Reverse modules disabled)");
+        statusBar()->showMessage("Running in Safe Mode — limited modules active", 5000);
+    }
+    else
+    {
+        statusBar()->showMessage("Ready", 2000);
+    }
 }
 
 MainWindow::~MainWindow() = default;
 
-// -- UI Construction --
+// --- UI Construction ---
 
 void MainWindow::createMenus()
 {
@@ -45,12 +65,14 @@ void MainWindow::createMenus()
 
     QMenu* tools = menuBar()->addMenu(tr("&Tools"));
     m_actionAnalyze = tools->addAction(tr("&Run Analysis"), this, &MainWindow::runAnalysis);
-    m_actionAI = tools->addAction(tr("Open &Aegis AI"), this, &MainWindow::showAIDock);
+
+    if (!g_safeMode)
+        m_actionAI = tools->addAction(tr("Open &Aegis AI"), this, &MainWindow::showAIDock);
 
     QMenu* help = menuBar()->addMenu(tr("&Help"));
     help->addAction(tr("About"), [this] {
         QMessageBox::about(this, tr("About AegisCAD"),
-                           tr("AegisCAD 1.0 – experimental CAD/FEA suite."));
+                           tr("AegisCAD 1.0 – advanced CAD/FEA suite with integrated AI engine."));
     });
 }
 
@@ -62,15 +84,22 @@ void MainWindow::createToolBar()
     tb->addAction(m_actionExport);
     tb->addSeparator();
     tb->addAction(m_actionAnalyze);
-    tb->addSeparator();
-    tb->addAction(m_actionAI);
+    if (!g_safeMode)
+    {
+        tb->addSeparator();
+        tb->addAction(m_actionAI);
+    }
 }
 
 void MainWindow::createDocks()
 {
+    if (g_safeMode)
+        return;
+
     addDockWidget(Qt::RightDockWidgetArea, m_aiDock);
     addDockWidget(Qt::BottomDockWidgetArea, m_pyDock);
     addDockWidget(Qt::RightDockWidgetArea, m_revDock);
+
     m_aiDock->hide();
     m_pyDock->hide();
     m_revDock->hide();
@@ -78,11 +107,12 @@ void MainWindow::createDocks()
 
 void MainWindow::createStatusBar()
 {
-    m_statusLabel = new QLabel("Ready", this);
+    m_statusLabel = new QLabel(this);
+    m_statusLabel->setText(g_safeMode ? "Safe Mode Active" : "Ready");
     statusBar()->addPermanentWidget(m_statusLabel);
 }
 
-// -- Actions --
+// --- Actions ---
 
 void MainWindow::newSketch()
 {
@@ -114,6 +144,7 @@ void MainWindow::runAnalysis()
 
 void MainWindow::showAIDock()
 {
+    if (!m_aiDock) return;
     m_aiDock->show();
     m_aiDock->raise();
 }
