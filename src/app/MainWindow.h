@@ -17,6 +17,8 @@ public:
     explicit MainWindow(QWidget* parent = nullptr);
     ~MainWindow() override;
 
+    bool isSafeMode() const { return m_safeMode; }
+
 private slots:
     // Core operations
     void newSketch();
@@ -59,4 +61,8 @@ private:
     // CAD backend helpers
     StepIgesIO    m_stepIO;        // STEP/IGES import/export handler
     GltfExporter  m_gltfExporter;  // GLTF exporter
+
+    // Safe mode flag
+    bool m_safeMode = false;
 };
+
