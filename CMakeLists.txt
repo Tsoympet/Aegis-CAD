@@ -66,3 +66,6 @@ add_executable(AegisCAD
     ${AEGISCAD_SOURCES}
     resources/aegiscad.qrc
 )
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(OpenCASCADE REQUIRED)
+target_link_libraries(AegisCAD PRIVATE Qt6::Widgets ${OpenCASCADE_LIBRARIES})
