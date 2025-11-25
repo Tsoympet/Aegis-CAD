@@ -54,3 +54,15 @@ endif()
 install(TARGETS AegisCAD
     RUNTIME DESTINATION bin
 )
+file(GLOB_RECURSE AEGISCAD_SOURCES
+    src/app/*.cpp
+    src/ui/*.cpp
+    src/ui/modern/*.cpp
+    src/cad/*.cpp
+    ...
+)
+
+add_executable(AegisCAD
+    ${AEGISCAD_SOURCES}
+    resources/aegiscad.qrc
+)
