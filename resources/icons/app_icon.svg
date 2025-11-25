@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="gearGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#666"/>
+      <stop offset="100%" stop-color="#222"/>
+    </linearGradient>
+
+    <linearGradient id="Agrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#00aaff"/>
+      <stop offset="100%" stop-color="#0050c0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Gear outline -->
+  <circle cx="256" cy="256" r="210" fill="none" stroke="url(#gearGrad)" stroke-width="40"/>
+
+  <!-- Stylized "A" -->
+  <polygon points="256,120 340,380 300,380 270,300 242,300 212,380 172,380"
+           fill="url(#Agrad)" stroke="none"/>
+</svg>
