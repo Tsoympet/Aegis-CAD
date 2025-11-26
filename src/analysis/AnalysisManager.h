@@ -1,29 +1,25 @@
 #pragma once
-#include <QString>
-#include <QVector>
-#include <gp_Pnt.hxx>
+#include <QObject>
+#include <QThread>
+#include "AnalysisTypes.h"
 
-/// Enum representing supported analysis types.
-enum class AnalysisTemplateKind {
-    StaticStructural,
-    ThermalSteady,
-    Modal,
-    Buckling,
-    ArmorImpact
-};
+class BackendFEA_CalculiX;
 
-/// Node-level result used for visualization.
-struct NodeResult {
-    gp_Pnt position;
-    double value = 0.0;  ///< stress, temperature, etc.
-};
+/// Central coordinator for FEA analysis execution.
+class AnalysisManager : public QObject
+{
+    Q_OBJECT
+public:
+    explicit AnalysisManager(QObject* parent = nullptr);
+    ~AnalysisManager() override;
 
-/// High-level analysis result metadata.
-struct AnalysisResult {
-    QString caseName;
-    bool succeeded = false;
-    double maxStress = 0.0;
-    double maxDisplacement = 0.0;
-    QString reportPath;
-    QVector<NodeResult> nodes;  ///< per-node results for 3D visualization
+    /// Launches a simulation case asynchronously.
+    void runCase(const QString& projectPath, AnalysisTemplateKind kind);
+
+signals:
+    void progressUpdated(int percent);
+    void finished(const AnalysisResult& result);
+
+private:
+    BackendFEA_CalculiX* m_backend = nullptr;
 };
