@@ -1,8 +1,30 @@
 #include "AnalysisManager.h"
+#include "BackendFEA_CalculiX.h"
+#include <QThread>
+#include <QtConcurrent>
 
-AnalysisResult AnalysisManager::runQuick()
+AnalysisManager::AnalysisManager(QObject* parent)
+    : QObject(parent)
 {
-    AnalysisResult r;
-    r.name = "quick-analysis";
-    return r;
+    m_backend = new BackendFEA_CalculiX(this);
+}
+
+AnalysisManager::~AnalysisManager()
+{
+    delete m_backend;
+}
+
+void AnalysisManager::runCase(const QString& projectPath, AnalysisTemplateKind kind)
+{
+    QtConcurrent::run([this, projectPath, kind]() {
+        AnalysisResult result;
+
+        emit progressUpdated(5);
+        result = m_backend->runAnalysis(projectPath, kind, [this](int p) {
+            emit progressUpdated(p);
+        });
+
+        emit progressUpdated(100);
+        emit finished(result);
+    });
 }
