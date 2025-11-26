@@ -3,6 +3,7 @@
 #include <QVector>
 #include <gp_Pnt.hxx>
 
+/// Enum representing supported analysis types.
 enum class AnalysisTemplateKind {
     StaticStructural,
     ThermalSteady,
@@ -11,16 +12,18 @@ enum class AnalysisTemplateKind {
     ArmorImpact
 };
 
+/// Node-level result used for visualization.
 struct NodeResult {
     gp_Pnt position;
-    double value;  // stress or displacement magnitude
+    double value = 0.0;  ///< stress, temperature, etc.
 };
 
+/// High-level analysis result metadata.
 struct AnalysisResult {
     QString caseName;
     bool succeeded = false;
     double maxStress = 0.0;
     double maxDisplacement = 0.0;
     QString reportPath;
-    QVector<NodeResult> nodes;  // for 3D visualization
+    QVector<NodeResult> nodes;  ///< per-node results for 3D visualization
 };
