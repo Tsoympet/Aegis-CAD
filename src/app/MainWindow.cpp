@@ -6,6 +6,10 @@
 #include "ui/AnalysisDock.h"
 #include "utils/Logging.h"
 
+#include <Bnd_Box.hxx>
+#include <BRepBndLib.hxx>
+#include <GProp_GProps.hxx>
+#include <BRepGProp.hxx>
 #include <QMenuBar>
 #include <QToolBar>
 #include <QStatusBar>
@@ -14,9 +18,10 @@
 #include <QLabel>
 #include <QIcon>
 #include <QActionGroup>
-#include <QSpacerItem>
 #include <QStyle>
 #include <QDesktopServices>
+#include <QFileInfo>
+#include <QDebug>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
@@ -24,14 +29,18 @@ MainWindow::MainWindow(QWidget* parent)
     setWindowTitle("AegisCAD");
     resize(1400, 900);
 
-    // ===== Core 3D Viewport =====
+    // ==========================
+    //  Core 3D Viewer
+    // ==========================
     m_view = new OccView(this);
     setCentralWidget(m_view);
 
-    // ===== Docks =====
-    m_aiDock   = new AegisAssistantDock(this);
-    m_pyDock   = new PythonConsoleDock(this);
-    m_revDock  = new ReverseEngineerDock(this);
+    // ==========================
+    //  Dock Widgets
+    // ==========================
+    m_aiDock      = new AegisAssistantDock(this);
+    m_pyDock      = new PythonConsoleDock(this);
+    m_revDock     = new ReverseEngineerDock(this);
     m_analysisDock = new AnalysisDock(this);
 
     createMenus();
@@ -39,9 +48,50 @@ MainWindow::MainWindow(QWidget* parent)
     createDocks();
     createStatusBar();
 
-    // ===== Signal Connections =====
+    // ==========================
+    //  Signal Connections
+    // ==========================
     connect(m_analysisDock, &AnalysisDock::analysisReady,
             m_view, &OccView::showAnalysisResults);
+
+    // 🔗 Reverse Engineer → Viewer integration
+    connect(m_revDock, &ReverseEngineerDock::modelGenerated,
+            this, [this](const QString& path) {
+                m_view->loadBrepModel(path);
+                Logging::info("Loaded reverse-engineered model: " + path);
+                m_statusLabel->setText("Model loaded: " + QFileInfo(path).fileName());
+
+                // Compute bounding box + basic metadata
+                BRep_Builder builder;
+                TopoDS_Shape shape;
+                if (BRepTools::Read(shape, path.toStdString().c_str(), builder)) {
+                    Bnd_Box box;
+                    BRepBndLib::Add(shape, box);
+                    Standard_Real xmin, ymin, zmin, xmax, ymax, zmax;
+                    box.Get(xmin, ymin, zmin, xmax, ymax, zmax);
+                    double dx = xmax - xmin, dy = ymax - ymin, dz = zmax - zmin;
+
+                    GProp_GProps prop;
+                    BRepGProp::VolumeProperties(shape, prop);
+                    double volume = prop.Mass(); // OCC returns volume as mass (ρ=1)
+                    double density = 7800; // default steel assumption
+                    double massKg = volume * density * 1e-9;
+
+                    QString meta = QString("Dims: %.2f×%.2f×%.2f m | Est. Mass: %.1f kg")
+                                        .arg(dx / 1000.0, 0, 'f', 2)
+                                        .arg(dy / 1000.0, 0, 'f', 2)
+                                        .arg(dz / 1000.0, 0, 'f', 2)
+                                        .arg(massKg, 0, 'f', 1);
+                    m_statusLabel->setText(meta);
+
+                    // Update AI context for reasoning
+                    m_aiDock->blockSignals(true);
+                    m_aiDock->appendMessage("System",
+                        "Model metadata synced: " + meta,
+                        QColor("#55ccff"));
+                    m_aiDock->blockSignals(false);
+                }
+            });
 }
 
 MainWindow::~MainWindow() = default;
@@ -72,7 +122,7 @@ void MainWindow::createMenus()
     QMenu* help = menuBar()->addMenu("&Help");
     help->addAction("About", [this] {
         QMessageBox::about(this, "About AegisCAD",
-            "AegisCAD 1.0 — Integrated CAD, FEA, and AI platform.\n"
+            "AegisCAD 1.0 — Integrated CAD, FEA, AI & Reverse Engineering Suite.\n"
             "© 2025 Aegis Engineering Systems.");
     });
 }
