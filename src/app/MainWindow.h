@@ -1,5 +1,7 @@
 #pragma once
 #include <QMainWindow>
+#include <memory>
+
 #include "cad/StepIgesIO.h"
 #include "cad/GltfExporter.h"
 
@@ -7,9 +9,12 @@ class OccView;
 class AegisAssistantDock;
 class PythonConsoleDock;
 class ReverseEngineerDock;
+class AnalysisDock;
 class QAction;
 class QLabel;
 
+/// Main application window for AegisCAD.
+/// Hosts the 3D viewport, toolbars, docks, and menus.
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
@@ -17,26 +22,20 @@ public:
     explicit MainWindow(QWidget* parent = nullptr);
     ~MainWindow() override;
 
-    bool isSafeMode() const { return m_safeMode; }
-
 private slots:
-    // Core operations
+    // Core CAD operations
     void newSketch();
 
-    // Feature operations
-    void extrudeBox();
-    void extrudeCylinder();
+    // Import / Export operations
+    void importCAD();
+    void exportCAD();
 
-    // Import / Export
-    void importCAD();   // Handles STEP + IGES
-    void exportCAD();   // Handles GLTF + STEP
-
-    // Tools
+    // Tools and analysis
     void runAnalysis();
     void showAIDock();
 
 private:
-    // UI setup
+    // Internal setup helpers
     void createMenus();
     void createToolBar();
     void createDocks();
@@ -47,22 +46,19 @@ private:
     AegisAssistantDock*  m_aiDock = nullptr;
     PythonConsoleDock*   m_pyDock = nullptr;
     ReverseEngineerDock* m_revDock = nullptr;
+    AnalysisDock*        m_analysisDock = nullptr;
 
     // Actions
-    QAction* m_actionNew = nullptr;
-    QAction* m_actionImport = nullptr;
-    QAction* m_actionExport = nullptr;
+    QAction* m_actionNew     = nullptr;
+    QAction* m_actionImport  = nullptr;
+    QAction* m_actionExport  = nullptr;
     QAction* m_actionAnalyze = nullptr;
-    QAction* m_actionAI = nullptr;
+    QAction* m_actionAI      = nullptr;
 
     // Status bar
     QLabel* m_statusLabel = nullptr;
 
-    // CAD backend helpers
-    StepIgesIO    m_stepIO;        // STEP/IGES import/export handler
-    GltfExporter  m_gltfExporter;  // GLTF exporter
-
-    // Safe mode flag
-    bool m_safeMode = false;
+    // CAD helpers
+    StepIgesIO   m_stepIO;
+    GltfExporter m_gltfExporter;
 };
-
