@@ -1,12 +1,11 @@
 #pragma once
-#include <vector>
+#include <QVector>
+#include "JointTypes.h"
+#include "AssemblyNode.h"
 
-struct AsmConstraint {
-    int id {0};
-};
-
+/// Geometric constraint solver for assemblies.
 class ConstraintSolverAsm
 {
 public:
-    bool solve(const std::vector<AsmConstraint>& constraints);
+    void solve(const QVector<Joint>& joints, QVector<std::shared_ptr<AssemblyNode>>& parts);
 };
