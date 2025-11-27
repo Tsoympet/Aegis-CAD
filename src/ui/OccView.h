@@ -4,8 +4,9 @@
 #include <AIS_ColoredShape.hxx>
 #include <V3d_View.hxx>
 #include <TopoDS_Shape.hxx>
-#include <Graphic3d_GraduatedTrihedron.hxx>
 #include <memory>
+
+#include "AnalysisLegendOverlay.h"  // 🔹 Legend overlay integration
 
 /// 3D viewer with analysis overlay (stress / temperature).
 class OccView : public QWidget
@@ -31,11 +32,13 @@ protected:
 
 private:
     void applyColorMap(const TopoDS_Shape& shape,
-                       const std::vector<std::pair<gp_Pnt,double>>& nodalValues);
+                       const std::vector<std::pair<gp_Pnt, double>>& nodalValues);
     Quantity_Color colorForValue(double val, double min, double max) const;
 
     Handle(AIS_InteractiveContext) m_context;
     Handle(V3d_View) m_view;
     QPoint m_lastMousePos;
-    std::unique_ptr<Graphic3d_GraduatedTrihedron> m_legend;
+
+    // 🔹 Analysis Legend Overlay (semi-transparent color bar)
+    std::unique_ptr<AnalysisLegendOverlay> m_legendOverlay;
 };
