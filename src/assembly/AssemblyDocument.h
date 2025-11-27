@@ -1,19 +1,34 @@
 #pragma once
-#include <vector>
-#include <string>
+#include <QString>
+#include <QVector>
+#include <memory>
+#include "AssemblyNode.h"
+#include "ConstraintSolverAsm.h"
+#include "JointTypes.h"
+#include "TransformGraph.h"
 
-struct AssemblyNodeRef {
-    int id {0};
-    int parentId {0};
-    std::string partId;
-};
-
+/// Represents a complete multi-part assembly document.
 class AssemblyDocument
 {
 public:
-    int addNode(const std::string& partId, int parentId = 0);
-    const std::vector<AssemblyNodeRef>& nodes() const { return m_nodes; }
+    AssemblyDocument();
+    ~AssemblyDocument() = default;
+
+    AssemblyNode* addPart(const QString& name, const QString& path);
+    bool removePart(const QString& name);
+
+    void addJoint(const Joint& j);
+    void removeJoint(const QString& name);
+
+    void solveConstraints();
+    void clear();
+
+    const QVector<std::shared_ptr<AssemblyNode>>& parts() const { return m_parts; }
+    const QVector<Joint>& joints() const { return m_joints; }
+
 private:
-    std::vector<AssemblyNodeRef> m_nodes;
-    int m_nextId {1};
+    QVector<std::shared_ptr<AssemblyNode>> m_parts;
+    QVector<Joint> m_joints;
+    ConstraintSolverAsm m_solver;
+    TransformGraph m_graph;
 };
