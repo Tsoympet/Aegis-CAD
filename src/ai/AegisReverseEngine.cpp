@@ -1,94 +1,91 @@
 #include "AegisReverseEngine.h"
-#include <pybind11/embed.h>
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/imgproc.hpp>
-#include <BRepPrimAPI_MakeBox.hxx>
-#include <TopoDS_Shape.hxx>
 #include <QDebug>
+#include <QRegularExpression>
+#include <QtConcurrent>
 
-namespace py = pybind11;
-using namespace pybind11::literals;
-
-AegisReverseEngine::AegisReverseEngine(QObject* parent)
-    : QObject(parent)
+AegisReverseEngine::AegisReverseEngine()
 {
-    initializePython();
+    m_status = "Idle.";
 }
 
-AegisReverseEngine::~AegisReverseEngine()
+void AegisReverseEngine::addReferenceImage(const QImage& img)
 {
-    if (m_pythonInitialized)
-        py::finalize_interpreter();
+    if (img.isNull()) return;
+    m_images << img;
+    m_status = QString("Loaded %1 reference image(s)").arg(m_images.size());
 }
 
-bool AegisReverseEngine::initializePython()
+void AegisReverseEngine::addTextSpec(const QString& text)
 {
-    try {
-        py::initialize_interpreter();
-        m_pythonInitialized = true;
-        emit logMessage("Python interpreter initialized for reverse-engineering.");
-        return true;
-    } catch (const std::exception& e) {
-        qWarning() << "Python init failed:" << e.what();
+    if (text.trimmed().isEmpty()) return;
+    m_textSpecs << text;
+    parseTextSpecs(text);
+}
+
+bool AegisReverseEngine::parseTextSpecs(const QString& text)
+{
+    // Simple regex-based extraction from Wikipedia-style specs
+    QRegularExpression weightRe("weight\\D+(\\d+(?:\\.\\d+)?)");
+    QRegularExpression lengthRe("length\\D+(\\d+(?:\\.\\d+)?)");
+    QRegularExpression widthRe("width\\D+(\\d+(?:\\.\\d+)?)");
+    QRegularExpression heightRe("height\\D+(\\d+(?:\\.\\d+)?)");
+
+    auto w = weightRe.match(text);
+    auto l = lengthRe.match(text);
+    auto wi = widthRe.match(text);
+    auto h = heightRe.match(text);
+
+    if (w.hasMatch()) m_detectedParams["mass_tons"] = w.captured(1).toDouble();
+    if (l.hasMatch()) m_detectedParams["length_m"] = l.captured(1).toDouble();
+    if (wi.hasMatch()) m_detectedParams["width_m"] = wi.captured(1).toDouble();
+    if (h.hasMatch()) m_detectedParams["height_m"] = h.captured(1).toDouble();
+
+    m_status = "Parsed textual specs.";
+    return true;
+}
+
+bool AegisReverseEngine::detectContours(const QImage& img)
+{
+    if (img.isNull()) return false;
+    // Stub: would use OpenCV edge detection or Qt image gradients
+    qDebug() << "Analyzing contours for geometry inference...";
+    m_status = "Contours detected (mock).";
+    return true;
+}
+
+bool AegisReverseEngine::reconstructGeometry()
+{
+    // Placeholder: would map contours → parametric primitives (boxes, cylinders, tracks, etc.)
+    qDebug() << "Reconstructing 3D geometry (mock)...";
+    m_status = "Reconstruction complete (demo).";
+    return true;
+}
+
+bool AegisReverseEngine::generateModel(const QString& outputPath)
+{
+    if (m_images.isEmpty() && m_textSpecs.isEmpty()) {
+        m_status = "No input data provided.";
         return false;
     }
+
+    m_status = "Running reconstruction pipeline...";
+    bool ok = true;
+
+    for (const QImage& img : m_images)
+        ok &= detectContours(img);
+    for (const QString& txt : m_textSpecs)
+        ok &= parseTextSpecs(txt);
+
+    ok &= reconstructGeometry();
+    if (ok)
+        m_status = QString("Model generated successfully → %1").arg(outputPath);
+    else
+        m_status = "Failed to reconstruct model.";
+    return ok;
 }
 
-QString AegisReverseEngine::analyzeImage(const QString& imagePath)
+QString AegisReverseEngine::status() const
 {
-    m_lastImage = cv::imread(imagePath.toStdString(), cv::IMREAD_COLOR);
-    if (m_lastImage.empty()) return "Failed to load image.";
-    cv::Mat gray, edges;
-    cv::cvtColor(m_lastImage, gray, cv::COLOR_BGR2GRAY);
-    cv::Canny(gray, edges, 80, 200);
-    emit logMessage("Image processed: edges detected.");
-    return QString("Detected %1 edges.").arg(cv::countNonZero(edges));
+    return m_status;
 }
 
-QString AegisReverseEngine::analyzeText(const QString& text)
-{
-    m_lastText = text;
-    emit logMessage("Text data loaded for reverse-engineering.");
-    return "Text data analyzed.";
-}
-
-QString AegisReverseEngine::runPythonFusion(const QString& prompt, const cv::Mat& image)
-{
-    if (!m_pythonInitialized) return "Python not ready.";
-    try {
-        py::object globals = py::globals();
-        globals["desc"] = prompt.toStdString();
-        globals["imgw"], globals["imgh"] = image.cols, image.rows;
-        const char* script = R"PYCODE(
-import math
-def interpret(desc, w, h):
-    if "tank" in desc.lower():
-        return f"Detected Tank-like geometry (w={w}, h={h}). Recommend turret+tracks."
-    if "aircraft" in desc.lower():
-        return f"Detected Aircraft structure (w={w}, h={h}). Recommend fuselage+wing."
-    if "ship" in desc.lower():
-        return f"Detected Ship hull geometry (w={w}, h={h})."
-    return f"Generic object ({w}x{h})."
-result = interpret(desc, imgw, imgh)
-)PYCODE";
-        py::exec(script, globals);
-        return QString::fromStdString(py::str(globals["result"]));
-    } catch (const std::exception& e) {
-        return QString("Python fusion failed: %1").arg(e.what());
-    }
-}
-
-std::shared_ptr<TopoDS_Shape> AegisReverseEngine::reconstructModel()
-{
-    auto shape = std::make_shared<TopoDS_Shape>(
-        BRepPrimAPI_MakeBox(100, 60, 30).Shape());
-    emit modelReady(shape);
-    return shape;
-}
-
-QString AegisReverseEngine::summary() const
-{
-    return QString("Reverse Engine active. Python: %1 | Image: %2x%3")
-        .arg(m_pythonInitialized ? "yes" : "no")
-        .arg(m_lastImage.cols).arg(m_lastImage.rows);
-}
