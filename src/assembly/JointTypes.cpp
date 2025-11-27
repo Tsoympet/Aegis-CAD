@@ -1,1 +1,2 @@
-// JointTypes.cpp – placeholder
+#include "JointTypes.h"
+// All definitions inline in header
