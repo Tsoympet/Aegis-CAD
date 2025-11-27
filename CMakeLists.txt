@@ -88,6 +88,16 @@ endif()
 install(TARGETS AegisCAD
     RUNTIME DESTINATION bin
 )
+find_package(pybind11 CONFIG REQUIRED)
+
+add_library(aegis_analysis MODULE
+    src/scripting/PythonBindings.cpp
+)
+target_link_libraries(aegis_analysis PRIVATE Qt6::Core ${OpenCASCADE_LIBRARIES} pybind11::module)
+set_target_properties(aegis_analysis PROPERTIES
+    PREFIX ""
+    OUTPUT_NAME "aegis_analysis"
+)
 
 message(STATUS "✅ AegisCAD configured with Qt6 + OpenCascade + full icon embedding.")
 
