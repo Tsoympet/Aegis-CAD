@@ -1,32 +1,38 @@
 #pragma once
-#include <QObject>
 #include <QString>
-#include <memory>
-#include <vector>
-#include <opencv2/core.hpp>
+#include <QImage>
+#include <QVector3D>
+#include <QMap>
+#include <QThreadPool>
 
-class TopoDS_Shape;
-
-class AegisReverseEngine : public QObject
+/// Reverse-engineering backend:
+/// Takes reference data (images, specs, dimensions, wiki text)
+/// and generates base 3D CAD shapes or assemblies.
+class AegisReverseEngine
 {
-    Q_OBJECT
 public:
-    explicit AegisReverseEngine(QObject* parent = nullptr);
-    ~AegisReverseEngine() override;
+    AegisReverseEngine();
+    ~AegisReverseEngine() = default;
 
-    bool initializePython();
-    QString analyzeImage(const QString& imagePath);
-    QString analyzeText(const QString& text);
-    std::shared_ptr<TopoDS_Shape> reconstructModel();
-    QString summary() const;
+    /// Feed raw reference image
+    void addReferenceImage(const QImage& img);
 
-signals:
-    void logMessage(const QString& msg);
-    void modelReady(const std::shared_ptr<TopoDS_Shape>& shape);
+    /// Feed textual data (e.g., specifications)
+    void addTextSpec(const QString& text);
+
+    /// Perform full reconstruction (runs async via QThreadPool)
+    bool generateModel(const QString& outputPath);
+
+    /// Optional: preview generation status
+    QString status() const;
 
 private:
-    bool m_pythonInitialized{false};
-    cv::Mat m_lastImage;
-    QString m_lastText;
-    QString runPythonFusion(const QString& prompt, const cv::Mat& image);
+    bool parseTextSpecs(const QString& text);
+    bool detectContours(const QImage& img);
+    bool reconstructGeometry();
+
+    QList<QImage> m_images;
+    QStringList   m_textSpecs;
+    QString       m_status;
+    QMap<QString, double> m_detectedParams;
 };
