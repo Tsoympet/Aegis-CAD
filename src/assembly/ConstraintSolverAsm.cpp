@@ -1,7 +1,10 @@
 #include "ConstraintSolverAsm.h"
+#include <QDebug>
 
-bool ConstraintSolverAsm::solve(const std::vector<AsmConstraint>& constraints)
+void ConstraintSolverAsm::solve(const QVector<Joint>& joints, QVector<std::shared_ptr<AssemblyNode>>& parts)
 {
-    (void)constraints;
-    return true;
+    Q_UNUSED(parts);
+    qDebug() << "Solving" << joints.size() << "joints...";
+    for (const auto& j : joints)
+        qDebug() << " - Joint:" << j.name << "type" << static_cast<int>(j.type);
 }
