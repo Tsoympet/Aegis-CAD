@@ -1,73 +1,114 @@
-#include "AegisAssistantDock.h"
-#include "ai/AegisAIEngine.h"
-#include "ai/AegisReverseEngine.h"
-
-#include <QHBoxLayout>
+#include "PythonConsoleDock.h"
+#include <QTextCursor>
 #include <QScrollBar>
+#include <QDir>
+#include <QMessageBox>
+#include <QStyle>
+#include <QFontDatabase>
+#include <Python.h>
 
-AegisAssistantDock::AegisAssistantDock(QWidget* parent)
-    : QDockWidget("Aegis Assistant", parent),
-      m_ai(std::make_unique<AegisAIEngine>()),
-      m_rev(std::make_unique<AegisReverseEngine>())
+PythonConsoleDock::PythonConsoleDock(QWidget* parent)
+    : QDockWidget("Python Console", parent)
 {
-    auto* mainWidget = new QWidget(this);
-    auto* layout = new QVBoxLayout(mainWidget);
-    m_console = new QTextEdit(mainWidget);
-    m_console->setReadOnly(true);
-    m_input = new QLineEdit(mainWidget);
-    m_sendBtn = new QPushButton("Send", mainWidget);
+    QWidget* main = new QWidget(this);
+    QVBoxLayout* layout = new QVBoxLayout(main);
+    layout->setContentsMargins(4, 4, 4, 4);
 
-    auto* inputRow = new QHBoxLayout();
-    inputRow->addWidget(m_input);
-    inputRow->addWidget(m_sendBtn);
+    output = new QTextEdit(main);
+    output->setReadOnly(true);
+    output->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+    output->setStyleSheet(
+        "QTextEdit { background: #111; color: #ddd; border: 1px solid #333; }");
 
-    layout->addWidget(new QLabel("AI Assistant Console"));
-    layout->addWidget(m_console);
-    layout->addLayout(inputRow);
-    mainWidget->setLayout(layout);
-    setWidget(mainWidget);
+    input = new QLineEdit(main);
+    input->setPlaceholderText(">>> Enter Python command...");
+    input->setStyleSheet(
+        "QLineEdit { background: #1a1a1a; color: #0af; border: 1px solid #333; }");
 
-    connectSignals();
+    layout->addWidget(output);
+    layout->addWidget(input);
+    main->setLayout(layout);
+    setWidget(main);
+
+    connect(input, &QLineEdit::returnPressed, this, &PythonConsoleDock::onCommandEntered);
+
+    initPython();
+    printMessage("AegisCAD Python Console Ready", QColor("#00aaff"));
 }
 
-AegisAssistantDock::~AegisAssistantDock() = default;
-
-void AegisAssistantDock::connectSignals()
+PythonConsoleDock::~PythonConsoleDock()
 {
-    connect(m_sendBtn, &QPushButton::clicked, this, &AegisAssistantDock::onSendClicked);
-    connect(m_ai.get(), &AegisAIEngine::logMessage, this, &AegisAssistantDock::handleLog);
-    connect(m_rev.get(), &AegisReverseEngine::logMessage, this, &AegisAssistantDock::handleLog);
+    finalizePython();
 }
 
-void AegisAssistantDock::onSendClicked()
+void PythonConsoleDock::initPython()
 {
-    const QString cmd = m_input->text().trimmed();
-    if (cmd.isEmpty()) return;
+    if (initialized) return;
+    Py_Initialize();
 
-    m_console->append("> " + cmd);
-    m_input->clear();
+    // Add the current working directory to sys.path
+    PyRun_SimpleString("import sys, os");
+    PyRun_SimpleString("sys.path.insert(0, os.getcwd())");
+    PyRun_SimpleString("import aegis_analysis as analysis");
+    PyRun_SimpleString("print('Imported aegis_analysis')");
+    initialized = true;
+}
 
-    if (cmd.startsWith("reverse"))
-    {
-        const QString img = cmd.section(' ', 1, 1);
-        const QString res = m_rev->analyzeImage(img);
-        const QString textHint = m_rev->runPythonFusion("auto", cv::Mat());
-        m_console->append("🔍 Reverse Result: " + res + "\n" + textHint);
+void PythonConsoleDock::finalizePython()
+{
+    if (Py_IsInitialized())
+        Py_Finalize();
+}
+
+void PythonConsoleDock::onCommandEntered()
+{
+    const QString command = input->text().trimmed();
+    if (command.isEmpty()) return;
+
+    printMessage(">>> " + command, QColor("#00ffff"));
+    history << command;
+    historyIndex = history.size();
+    input->clear();
+    executeCommand(command);
+}
+
+void PythonConsoleDock::executeCommand(const QString& command)
+{
+    if (!Py_IsInitialized()) {
+        printMessage("Python interpreter not initialized.", QColor("#ff5555"));
+        return;
     }
-    else
-    {
-        const QString res = m_ai->processCommand(cmd);
-        m_console->append("🤖 " + res);
+
+    QByteArray utf8Cmd = command.toUtf8();
+    PyObject* pyMain = PyImport_AddModule("__main__");
+    PyObject* pyDict = PyModule_GetDict(pyMain);
+    PyObject* result = PyRun_String(utf8Cmd.constData(), Py_single_input, pyDict, pyDict);
+
+    if (!result) {
+        PyErr_Print();
+        printMessage("[Error] Python execution failed", QColor("#ff5555"));
+    } else {
+        Py_XDECREF(result);
     }
-    m_console->verticalScrollBar()->setValue(m_console->verticalScrollBar()->maximum());
 }
 
-void AegisAssistantDock::handleAIResponse(const QString& msg)
+void PythonConsoleDock::printMessage(const QString& msg, const QColor& color)
 {
-    m_console->append("AI: " + msg);
+    output->setTextColor(color);
+    output->append(msg);
+    QScrollBar* sb = output->verticalScrollBar();
+    sb->setValue(sb->maximum());
 }
 
-void AegisAssistantDock::handleLog(const QString& msg)
+void PythonConsoleDock::keyPressEvent(QKeyEvent* e)
 {
-    m_console->append("[Log] " + msg);
+    if (e->key() == Qt::Key_Up && historyIndex > 0) {
+        historyIndex--;
+        input->setText(history[historyIndex]);
+    } else if (e->key() == Qt::Key_Down && historyIndex < history.size() - 1) {
+        historyIndex++;
+        input->setText(history[historyIndex]);
+    } else {
+        QDockWidget::keyPressEvent(e);
+    }
 }
