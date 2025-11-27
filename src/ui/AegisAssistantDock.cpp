@@ -1,114 +1,111 @@
-#include "PythonConsoleDock.h"
-#include <QTextCursor>
-#include <QScrollBar>
-#include <QDir>
-#include <QMessageBox>
-#include <QStyle>
+#include "AegisAssistantDock.h"
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QDateTime>
 #include <QFontDatabase>
-#include <Python.h>
 
-PythonConsoleDock::PythonConsoleDock(QWidget* parent)
-    : QDockWidget("Python Console", parent)
+AegisAssistantDock::AegisAssistantDock(QWidget* parent)
+    : QDockWidget("Aegis AI Assistant", parent)
 {
     QWidget* main = new QWidget(this);
     QVBoxLayout* layout = new QVBoxLayout(main);
-    layout->setContentsMargins(4, 4, 4, 4);
+    layout->setContentsMargins(6, 6, 6, 6);
 
-    output = new QTextEdit(main);
-    output->setReadOnly(true);
-    output->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
-    output->setStyleSheet(
+    m_output = new QTextEdit(main);
+    m_output->setReadOnly(true);
+    m_output->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+    m_output->setStyleSheet(
         "QTextEdit { background: #111; color: #ddd; border: 1px solid #333; }");
 
-    input = new QLineEdit(main);
-    input->setPlaceholderText(">>> Enter Python command...");
-    input->setStyleSheet(
+    m_input = new QLineEdit(main);
+    m_input->setPlaceholderText("Ask Aegis AI about this model...");
+    m_input->setStyleSheet(
         "QLineEdit { background: #1a1a1a; color: #0af; border: 1px solid #333; }");
 
-    layout->addWidget(output);
-    layout->addWidget(input);
+    m_sendBtn = new QPushButton("Send", main);
+    m_clearBtn = new QPushButton("Clear", main);
+
+    QHBoxLayout* bottomLayout = new QHBoxLayout();
+    bottomLayout->addWidget(m_input);
+    bottomLayout->addWidget(m_sendBtn);
+    bottomLayout->addWidget(m_clearBtn);
+
+    layout->addWidget(m_output);
+    layout->addLayout(bottomLayout);
     main->setLayout(layout);
     setWidget(main);
 
-    connect(input, &QLineEdit::returnPressed, this, &PythonConsoleDock::onCommandEntered);
+    connect(m_sendBtn, &QPushButton::clicked, this, &AegisAssistantDock::onSendMessage);
+    connect(m_clearBtn, &QPushButton::clicked, this, &AegisAssistantDock::onClearChat);
+    connect(m_input, &QLineEdit::returnPressed, this, &AegisAssistantDock::onSendMessage);
 
-    initPython();
-    printMessage("AegisCAD Python Console Ready", QColor("#00aaff"));
+    appendMessage("System", "Aegis AI Assistant ready.", QColor("#00aaff"));
 }
 
-PythonConsoleDock::~PythonConsoleDock()
+void AegisAssistantDock::appendMessage(const QString& sender, const QString& text, const QColor& color)
 {
-    finalizePython();
-}
-
-void PythonConsoleDock::initPython()
-{
-    if (initialized) return;
-    Py_Initialize();
-
-    // Add the current working directory to sys.path
-    PyRun_SimpleString("import sys, os");
-    PyRun_SimpleString("sys.path.insert(0, os.getcwd())");
-    PyRun_SimpleString("import aegis_analysis as analysis");
-    PyRun_SimpleString("print('Imported aegis_analysis')");
-    initialized = true;
-}
-
-void PythonConsoleDock::finalizePython()
-{
-    if (Py_IsInitialized())
-        Py_Finalize();
-}
-
-void PythonConsoleDock::onCommandEntered()
-{
-    const QString command = input->text().trimmed();
-    if (command.isEmpty()) return;
-
-    printMessage(">>> " + command, QColor("#00ffff"));
-    history << command;
-    historyIndex = history.size();
-    input->clear();
-    executeCommand(command);
-}
-
-void PythonConsoleDock::executeCommand(const QString& command)
-{
-    if (!Py_IsInitialized()) {
-        printMessage("Python interpreter not initialized.", QColor("#ff5555"));
-        return;
-    }
-
-    QByteArray utf8Cmd = command.toUtf8();
-    PyObject* pyMain = PyImport_AddModule("__main__");
-    PyObject* pyDict = PyModule_GetDict(pyMain);
-    PyObject* result = PyRun_String(utf8Cmd.constData(), Py_single_input, pyDict, pyDict);
-
-    if (!result) {
-        PyErr_Print();
-        printMessage("[Error] Python execution failed", QColor("#ff5555"));
-    } else {
-        Py_XDECREF(result);
-    }
-}
-
-void PythonConsoleDock::printMessage(const QString& msg, const QColor& color)
-{
-    output->setTextColor(color);
-    output->append(msg);
-    QScrollBar* sb = output->verticalScrollBar();
+    m_output->setTextColor(color);
+    m_output->append(QString("[%1] %2").arg(sender, text));
+    QScrollBar* sb = m_output->verticalScrollBar();
     sb->setValue(sb->maximum());
+    m_conversation << QString("%1: %2").arg(sender, text);
 }
 
-void PythonConsoleDock::keyPressEvent(QKeyEvent* e)
+void AegisAssistantDock::onSendMessage()
 {
-    if (e->key() == Qt::Key_Up && historyIndex > 0) {
-        historyIndex--;
-        input->setText(history[historyIndex]);
-    } else if (e->key() == Qt::Key_Down && historyIndex < history.size() - 1) {
-        historyIndex++;
-        input->setText(history[historyIndex]);
-    } else {
-        QDockWidget::keyPressEvent(e);
+    const QString userInput = m_input->text().trimmed();
+    if (userInput.isEmpty()) return;
+
+    appendMessage("You", userInput, QColor("#00ffff"));
+    m_input->clear();
+
+    QString response = m_engine.processMessage(userInput);
+    appendMessage("AegisAI", response, QColor("#aaff00"));
+
+    emit messageGenerated(response);
+}
+
+void AegisAssistantDock::onClearChat()
+{
+    m_output->clear();
+    m_conversation.clear();
+    appendMessage("System", "Chat cleared.", QColor("#888"));
+}
+
+// -----------------------------------------------------------------------------
+// Persistence: Save / Load chat history as part of .aegisproj
+// -----------------------------------------------------------------------------
+
+void AegisAssistantDock::saveConversation(const QString& path)
+{
+    QJsonArray arr;
+    for (const QString& msg : m_conversation) arr.append(msg);
+
+    QJsonObject root;
+    root["timestamp"] = QDateTime::currentDateTime().toString(Qt::ISODate);
+    root["conversation"] = arr;
+
+    QFile f(path);
+    if (f.open(QIODevice::WriteOnly)) {
+        f.write(QJsonDocument(root).toJson());
+        f.close();
     }
+}
+
+void AegisAssistantDock::loadConversation(const QString& path)
+{
+    QFile f(path);
+    if (!f.exists() || !f.open(QIODevice::ReadOnly)) return;
+
+    QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+    f.close();
+
+    m_output->clear();
+    m_conversation.clear();
+
+    const QJsonArray arr = doc.object().value("conversation").toArray();
+    for (const auto& v : arr)
+        appendMessage("Log", v.toString(), QColor("#888"));
 }
