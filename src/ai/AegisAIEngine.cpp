@@ -1,155 +1,176 @@
 #include "AegisAIEngine.h"
-#include <pybind11/embed.h>
-#include <TopoDS_Shape.hxx>
-#include <QDebug>
+#include <QJsonObject>
+#include <QJsonDocument>
+#include <QRegularExpression>
+#include <QTextStream>
+#include <QDateTime>
 
-namespace py = pybind11;
-using namespace pybind11::literals;
+#ifdef USE_PYBIND11
+    #include <pybind11/embed.h>
+    namespace py = pybind11;
+#endif
 
-AegisAIEngine::AegisAIEngine(QObject* parent)
-    : QObject(parent)
+AegisAIEngine::AegisAIEngine()
 {
-    m_materialDB = {
-        {"Steel", 7850.0}, {"Aluminum", 2700.0}, {"Titanium", 4500.0},
-        {"Composite", 1600.0}, {"Brass", 8500.0}
-    };
-    initializePython();
+    m_domains = { "Materials", "Stress", "Safety", "Thermal", "Aerodynamics", "Armor", "Structure" };
+
+#ifdef USE_PYBIND11
+    try {
+        py::initialize_interpreter();
+        m_pythonEnabled = true;
+    } catch (...) {
+        m_pythonEnabled = false;
+    }
+#endif
 }
 
 AegisAIEngine::~AegisAIEngine()
 {
-    if (m_pythonInitialized)
+#ifdef USE_PYBIND11
+    if (m_pythonEnabled)
         py::finalize_interpreter();
+#endif
 }
 
-bool AegisAIEngine::initializePython()
+// ============================================================================
+//  Context
+// ============================================================================
+void AegisAIEngine::setContext(const QString& key, double value)
 {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_context[key] = value;
+}
+
+std::optional<double> AegisAIEngine::context(const QString& key) const
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (!m_context.contains(key))
+        return std::nullopt;
+    return m_context[key];
+}
+
+// ============================================================================
+//  Message Processing
+// ============================================================================
+QString AegisAIEngine::processMessage(const QString& input)
+{
+    QString lower = input.toLower();
+
+    if (lower.contains("stress") || lower.contains("factor of safety"))
+        return handleAnalysisQuery(input);
+    if (lower.contains("optimiz") || lower.contains("reduce"))
+        return suggestOptimization();
+    if (lower.contains("material") || lower.contains("yield"))
+        return evaluateDesignRules(input);
+
+    // fallback to general chat
+    return handleGeneralChat(input);
+}
+
+// ============================================================================
+//  Rule Evaluation
+// ============================================================================
+QString AegisAIEngine::evaluateDesignRules(const QString& input)
+{
+    double yield = m_context.value("yield_strength", 250.0);
+    double stress = m_context.value("max_stress", 120.0);
+    double fos = yield / (stress + 1e-6);
+
+    QString msg = QString("Material check:\n"
+                          "• Yield strength = %1 MPa\n"
+                          "• Max stress = %2 MPa\n"
+                          "• Factor of Safety = %3\n")
+                      .arg(yield, 0, 'f', 2)
+                      .arg(stress, 0, 'f', 2)
+                      .arg(fos, 0, 'f', 2);
+
+    if (fos < 1.5)
+        msg += "\n⚠️ Safety margin too low — consider thicker section or higher-grade alloy.";
+    else if (fos > 4.0)
+        msg += "\n✅ Overdesigned — you can reduce mass or wall thickness safely.";
+    else
+        msg += "\n✅ Safety margin acceptable.";
+
+    return msg;
+}
+
+// ============================================================================
+QString AegisAIEngine::suggestOptimization()
+{
+    double mass = m_context.value("mass", 0.0);
+    double stress = m_context.value("max_stress", 0.0);
+    double fos = m_context.value("fos", 0.0);
+
+    QString out = "Optimization suggestion:\n";
+
+    if (mass > 0 && stress > 0) {
+        if (fos > 3.5)
+            out += "• Component appears overdesigned. Try reducing thickness by 10–20%.\n";
+        else if (fos < 1.2)
+            out += "• Component underdesigned. Increase support ribs or cross-section area.\n";
+    } else {
+        out += "• Provide analysis results (mass, stress, FoS) for optimization hints.\n";
+    }
+
+    return out + "\n(Use 'Run Analysis' before optimization for best accuracy.)";
+}
+
+// ============================================================================
+QString AegisAIEngine::handleAnalysisQuery(const QString& query)
+{
+    double stress = m_context.value("max_stress", 0.0);
+    double yield = m_context.value("yield_strength", 0.0);
+    double fos = yield / (stress + 1e-6);
+
+    QString result;
+    QTextStream s(&result);
+    s << "Analysis summary:\n"
+      << "  Max stress: " << stress << " MPa\n"
+      << "  Yield: " << yield << " MPa\n"
+      << "  Calculated FoS: " << fos << "\n";
+
+    if (fos < 1.5)
+        s << "  ⚠️ High stress detected, design may fail under load.\n";
+    else
+        s << "  ✅ Within safe range.\n";
+
+    return result;
+}
+
+// ============================================================================
+QString AegisAIEngine::handleGeneralChat(const QString& query)
+{
+    QStringList canned = {
+        "I'm your onboard design assistant — ready to analyze or optimize any part.",
+        "Try commands like 'check stress', 'suggest material', or 'optimize weight'.",
+        "Your design context is automatically updated after each FEA run."
+    };
+
+    int idx = QDateTime::currentSecsSinceEpoch() % canned.size();
+    return canned[idx];
+}
+
+// ============================================================================
+QString AegisAIEngine::runPythonRule(const QString& scriptCode)
+{
+#ifndef USE_PYBIND11
+    Q_UNUSED(scriptCode);
+    return "⚙️ Python integration not available (rebuild with USE_PYBIND11).";
+#else
+    if (!m_pythonEnabled)
+        return "Python runtime disabled.";
+
     try {
-        py::initialize_interpreter();
-        m_pythonInitialized = true;
-        emit pythonReady();
-        emit logMessage("Python interpreter initialized for Aegis AI Engine.");
-        return true;
-    } catch (const std::exception& e) {
-        qWarning() << "Python init failed:" << e.what();
-        return false;
+        py::object result = py::eval(scriptCode.toStdString());
+        return QString::fromStdString(py::str(result));
+    } catch (std::exception& e) {
+        return QString("Python error: %1").arg(e.what());
     }
+#endif
 }
 
-void AegisAIEngine::setCurrentPart(const PartContext& ctx)
+// ============================================================================
+QStringList AegisAIEngine::availableDomains() const
 {
-    m_currentPart = ctx;
-    emit logMessage(QString("Context updated: %1 (%2, %3)")
-                    .arg(ctx.name, ctx.material, ctx.type));
-}
-
-QString AegisAIEngine::processCommand(const QString& input)
-{
-    if (input.isEmpty()) return "No command given.";
-    const QString lower = input.toLower();
-
-    // Explicit context usage: only when user mentions “selected” / “this part”
-    bool useContext = lower.contains("selected") || lower.contains("this part") || lower.contains("current part");
-
-    QString ruleResp = ruleBasedResponse(input);
-    if (!ruleResp.isEmpty()) {
-        if (useContext)
-            return contextualResponse(ruleResp, true);
-        return ruleResp;
-    }
-
-    if (m_pythonInitialized) {
-        QString resp = runPythonReasoning(input);
-        if (useContext)
-            return contextualResponse(resp, true);
-        return resp;
-    }
-
-    return "AI Engine not ready.";
-}
-
-QString AegisAIEngine::ruleBasedResponse(const QString& input)
-{
-    const QString lower = input.toLower();
-    if (lower.contains("optimize"))
-        return "Suggested optimization: reduce wall thickness or switch to composite.";
-    if (lower.contains("analyze"))
-        return "Run FEA on selected geometry for local stress hotspots.";
-    if (lower.contains("material"))
-        return "Material analysis: check density-to-strength ratio.";
-    if (lower.contains("extrude"))
-        emit actionTriggered("extrude");
-    if (lower.contains("import step"))
-        emit actionTriggered("import_step");
-    if (lower.contains("export gltf"))
-        emit actionTriggered("export_gltf");
-    if (lower.contains("help"))
-        return "Available commands: analyze, optimize, import step, export gltf, material <name>";
-    return {};
-}
-
-QString AegisAIEngine::runPythonReasoning(const QString& prompt)
-{
-    try {
-        py::object globals = py::globals();
-        globals["prompt"] = prompt.toStdString();
-        const char* script = R"PYCODE(
-import math
-def respond(text):
-    t = text.lower()
-    if "material" in t:
-        return "Material choice should consider yield strength and mass efficiency."
-    if "stress" in t:
-        return "Stress distribution within acceptable FoS range."
-    if "weight" in t or "optimize" in t:
-        return "Consider reducing part density or applying topology optimization."
-    return "General structure within operational limits."
-resp = respond(prompt)
-)PYCODE";
-        py::exec(script, globals);
-        std::string result = py::str(globals["resp"]);
-        return QString::fromStdString(result);
-    } catch (const std::exception& e) {
-        return QString("Python reasoning failed: %1").arg(e.what());
-    }
-}
-
-QString AegisAIEngine::suggestOptimization(const std::shared_ptr<TopoDS_Shape>&)
-{
-    return "Optimization suggestion: merge redundant edges and simplify topology.";
-}
-
-QString AegisAIEngine::analyzeMaterial(const QString& matName, double stress, double strain)
-{
-    if (!m_materialDB.contains(matName)) return "Unknown material.";
-    double density = m_materialDB[matName];
-    double strengthIndex = stress / (strain + 1e-6);
-    return QString("Material: %1 | Density: %2 kg/m³ | Strength Index: %3")
-        .arg(matName).arg(density, 0, 'f', 2).arg(strengthIndex, 0, 'f', 2);
-}
-
-QString AegisAIEngine::generateSummary() const
-{
-    return QString("Aegis AI Assistant — Python: %1 | Context: %2")
-        .arg(m_pythonInitialized ? "ready" : "off")
-        .arg(m_currentPart.isValid() ? m_currentPart.name : "none");
-}
-
-QString AegisAIEngine::contextualResponse(const QString& base, bool conversational) const
-{
-    if (!m_currentPart.isValid())
-        return base + "\n(No active part context.)";
-
-    QString header = QString("🧩 %1 (%2)\n").arg(m_currentPart.name, m_currentPart.material);
-    QString technical = QString("FoS: %1  |  Stress: %2 MPa  |  Mass: %3 kg  |  Volume: %4 cm³")
-        .arg(m_currentPart.fos, 0, 'f', 2)
-        .arg(m_currentPart.stress, 0, 'f', 1)
-        .arg(m_currentPart.mass, 0, 'f', 1)
-        .arg(m_currentPart.volume, 0, 'f', 1);
-
-    QString narrative = QString("\nThe selected %1 made of %2 has a safety factor of %3 under current load.")
-        .arg(m_currentPart.type, m_currentPart.material)
-        .arg(m_currentPart.fos, 0, 'f', 2);
-
-    return header + technical + (conversational ? narrative : QString()) + "\n\n" + base;
+    return m_domains;
 }
