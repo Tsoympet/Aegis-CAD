@@ -1,14 +1,11 @@
 #pragma once
-#include <vector>
+#include <QVector>
+#include <memory>
+#include "AssemblyNode.h"
 
-struct TransformNode {
-    int id {0};
-};
-
+/// Maintains dependency graph for assembly transforms.
 class TransformGraph
 {
 public:
-    void clear() { m_nodes.clear(); }
-private:
-    std::vector<TransformNode> m_nodes;
+    void update(const QVector<std::shared_ptr<AssemblyNode>>& parts);
 };
