@@ -1,44 +1,35 @@
 #pragma once
+
 #include <QWidget>
 #include <AIS_InteractiveContext.hxx>
-#include <AIS_ColoredShape.hxx>
 #include <V3d_View.hxx>
-#include <TopoDS_Shape.hxx>
 #include <memory>
 
-#include "AnalysisLegendOverlay.h"  // 🔹 Legend overlay integration
-
-/// 3D viewer with analysis overlay (stress / temperature).
-class OccView : public QWidget
-{
+class OccView : public QWidget {
     Q_OBJECT
 public:
-    explicit OccView(QWidget* parent = nullptr);
+    explicit OccView(QWidget *parent = nullptr);
     ~OccView() override;
 
-    void displayShape(const TopoDS_Shape& shape, const QColor& color = Qt::lightGray);
-    void loadBrepModel(const QString& brepPath);
-
-public slots:
-    /// Visualizes analysis results (.csv or .json with node + value)
-    void showAnalysisResults(const QString& dataPath);
+    void displayShape(const TopoDS_Shape &shape);
 
 protected:
-    void paintEvent(QPaintEvent*) override;
-    void resizeEvent(QResizeEvent*) override;
-    void wheelEvent(QWheelEvent* e) override;
-    void mousePressEvent(QMouseEvent* e) override;
-    void mouseMoveEvent(QMouseEvent* e) override;
+    QPaintEngine *paintEngine() const override { return nullptr; }
+    void paintEvent(QPaintEvent *) override;
+    void resizeEvent(QResizeEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
 
 private:
-    void applyColorMap(const TopoDS_Shape& shape,
-                       const std::vector<std::pair<gp_Pnt, double>>& nodalValues);
-    Quantity_Color colorForValue(double val, double min, double max) const;
+    void initializeViewer();
 
+    Handle(V3d_Viewer) m_viewer;
     Handle(AIS_InteractiveContext) m_context;
     Handle(V3d_View) m_view;
-    QPoint m_lastMousePos;
-
-    // 🔹 Analysis Legend Overlay (semi-transparent color bar)
-    std::unique_ptr<AnalysisLegendOverlay> m_legendOverlay;
+    bool m_initialized{false};
+    Qt::MouseButton m_lastButton{Qt::NoButton};
+    QPoint m_lastPos;
 };
+

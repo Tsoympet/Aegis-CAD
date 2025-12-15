@@ -1,24 +1,19 @@
 #pragma once
-#include <QWidget>
-#include <QLinearGradient>
-#include <QPainter>
 
-/// Semi-transparent color legend for analysis visualization.
-/// Displays color bar, min/max values, and title.
-class AnalysisLegendOverlay : public QWidget
-{
+#include <QWidget>
+#include <QString>
+
+class AnalysisLegendOverlay : public QWidget {
     Q_OBJECT
 public:
-    explicit AnalysisLegendOverlay(QWidget* parent = nullptr);
+    explicit AnalysisLegendOverlay(QWidget *parent = nullptr);
 
-    void setRange(double minVal, double maxVal);
-    void setTitle(const QString& title);
+    void setResultText(const QString &text);
 
 protected:
-    void paintEvent(QPaintEvent* e) override;
+    void paintEvent(QPaintEvent *event) override;
 
 private:
-    double m_minVal {0.0};
-    double m_maxVal {1.0};
-    QString m_title {"Stress [MPa]"};
+    QString m_text;
 };
+

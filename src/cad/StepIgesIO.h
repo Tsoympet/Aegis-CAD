@@ -1,17 +1,13 @@
 #pragma once
-#include <string>
-#include <memory>
 
-class TopoDS_Shape;
+#include <QString>
+#include <TopoDS_Shape.hxx>
 
-class StepIgesIO
-{
+class StepIgesIO {
 public:
-    StepIgesIO() = default;
+    StepIgesIO();
 
-    std::shared_ptr<TopoDS_Shape> importSTEP(const std::string& path);
-    bool exportSTEP(const std::string& path, const TopoDS_Shape& shape);
-
-    std::shared_ptr<TopoDS_Shape> importIGES(const std::string& path);
-    bool exportIGES(const std::string& path, const TopoDS_Shape& shape);
+    TopoDS_Shape importFile(const QString &path) const;
+    bool exportStep(const QString &path, const TopoDS_Shape &shape) const;
 };
+

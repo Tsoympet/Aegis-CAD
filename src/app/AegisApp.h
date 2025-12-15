@@ -1,22 +1,18 @@
 #pragma once
+
 #include <QApplication>
-#include <QString>
 #include <memory>
 
-class MainWindow;
+class ModernStyle;
 
-class AegisApp
-{
+class AegisApp : public QApplication {
+    Q_OBJECT
 public:
-    AegisApp(int& argc, char** argv);
-    ~AegisApp();
-
-    int run();
+    AegisApp(int &argc, char **argv);
+    ~AegisApp() override;
 
 private:
-    QApplication m_app;
-    std::unique_ptr<MainWindow> m_mainWindow;
-
-    void initStyle();
-    void initOpenCascade();
+    std::unique_ptr<ModernStyle> m_style;
+    void setupPalette();
 };
+

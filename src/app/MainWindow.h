@@ -1,64 +1,51 @@
 #pragma once
+
 #include <QMainWindow>
 #include <memory>
 
-#include "cad/StepIgesIO.h"
-#include "cad/GltfExporter.h"
-
 class OccView;
+class AnalysisLegendOverlay;
 class AegisAssistantDock;
-class PythonConsoleDock;
 class ReverseEngineerDock;
-class AnalysisDock;
-class QAction;
-class QLabel;
+class PythonConsoleDock;
+class AnalysisManager;
+class AegisAIEngine;
+class PartRegistry;
+class StepIgesIO;
+class GltfExporter;
+class ProjectIO;
 
-/// Main application window for AegisCAD.
-/// Hosts the 3D viewport, toolbars, docks, and menus.
-class MainWindow : public QMainWindow
-{
+class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
-    explicit MainWindow(QWidget* parent = nullptr);
+    explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow() override;
 
 private slots:
-    // Core CAD operations
-    void newSketch();
-
-    // Import / Export operations
-    void importCAD();
-    void exportCAD();
-
-    // Tools and analysis
+    void openStepFile();
+    void exportStepFile();
+    void exportGltfFile();
     void runAnalysis();
-    void showAIDock();
+    void regenerateFromReverse(const QString &prompt);
+    void evaluateAIAssistant(const QString &prompt);
 
 private:
-    // Internal setup helpers
-    void createMenus();
-    void createToolBar();
-    void createDocks();
-    void createStatusBar();
+    void setupUi();
+    void setupDocks();
+    void setupToolbar();
+    void loadSamplePart();
 
-    // Widgets
-    OccView*             m_view = nullptr;
-    AegisAssistantDock*  m_aiDock = nullptr;
-    PythonConsoleDock*   m_pyDock = nullptr;
-    ReverseEngineerDock* m_revDock = nullptr;
-    AnalysisDock*        m_analysisDock = nullptr;
+    OccView *m_view{nullptr};
+    AnalysisLegendOverlay *m_legend{nullptr};
+    AegisAssistantDock *m_aiDock{nullptr};
+    ReverseEngineerDock *m_reverseDock{nullptr};
+    PythonConsoleDock *m_pythonDock{nullptr};
 
-    // Actions
-    QAction* m_actionNew     = nullptr;
-    QAction* m_actionImport  = nullptr;
-    QAction* m_actionExport  = nullptr;
-    QAction* m_actionAnalyze = nullptr;
-    QAction* m_actionAI      = nullptr;
-
-    // Status bar
-    QLabel* m_statusLabel = nullptr;
-
-    // CAD helpers
-    StepIgesIO   m_stepIO;
-    GltfExporter m_gltfExporter;
+    std::unique_ptr<AnalysisManager> m_analysis;
+    std::unique_ptr<AegisAIEngine> m_aiEngine;
+    std::unique_ptr<PartRegistry> m_partRegistry;
+    std::unique_ptr<StepIgesIO> m_io;
+    std::unique_ptr<GltfExporter> m_gltf;
+    std::unique_ptr<ProjectIO> m_projectIO;
 };
+

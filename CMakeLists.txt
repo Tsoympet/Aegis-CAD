@@ -1,103 +1,66 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.20)
 project(AegisCAD VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
 
-# ---------------------------
-# Dependencies
-# ---------------------------
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(OpenCASCADE REQUIRED)
+find_package(pybind11 CONFIG REQUIRED)
 
-# ---------------------------
-# Sources
-# ---------------------------
 file(GLOB_RECURSE AEGISCAD_SOURCES
     src/app/*.cpp
     src/ui/*.cpp
-    src/ui/modern/*.cpp
     src/cad/*.cpp
-    src/assembly/*.cpp
-    src/cam/*.cpp
-    src/drafting/*.cpp
     src/analysis/*.cpp
     src/ai/*.cpp
     src/utils/*.cpp
     src/scripting/*.cpp
-    src/perf/*.cpp
 )
 
-# ---------------------------
-# Qt Resource file (icons, qml, etc.)
-# ---------------------------
 set(AEGISCAD_RESOURCES
     resources/aegiscad.qrc
 )
 
-# ---------------------------
-# Executable
-# ---------------------------
 add_executable(AegisCAD
     ${AEGISCAD_SOURCES}
     ${AEGISCAD_RESOURCES}
 )
 
-# ---------------------------
-# Include directories
-# ---------------------------
 target_include_directories(AegisCAD PRIVATE
     src/app
     src/ui
-    src/ui/modern
     src/cad
-    src/assembly
-    src/cam
-    src/drafting
     src/analysis
     src/ai
     src/utils
     src/scripting
-    src/perf
     ${OpenCASCADE_INCLUDE_DIR}
 )
 
-# ---------------------------
-# Link libraries
-# ---------------------------
-target_link_libraries(AegisCAD
+target_link_libraries(AegisCAD PRIVATE
     Qt6::Widgets
     ${OpenCASCADE_LIBRARIES}
+    pybind11::embed
 )
 
-# ---------------------------
-# Platform-specific setup
-# ---------------------------
-if (WIN32)
-    set_target_properties(AegisCAD PROPERTIES WIN32_EXECUTABLE ON)
-    # Embed icon in executable
-    set(APP_ICON_RESOURCE_WINDOWS "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/app_icon.ico")
-    if (EXISTS ${APP_ICON_RESOURCE_WINDOWS})
-        target_sources(AegisCAD PRIVATE ${APP_ICON_RESOURCE_WINDOWS})
-    endif()
-endif()
+target_compile_definitions(AegisCAD PRIVATE QT_NO_KEYWORDS)
 
-# ---------------------------
-# Install
-# ---------------------------
+target_compile_options(AegisCAD PRIVATE
+    $<$<CXX_COMPILER_ID:MSVC>:/W4 /permissive->
+    $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic>
+)
+
 install(TARGETS AegisCAD
     RUNTIME DESTINATION bin
-)
-find_package(pybind11 CONFIG REQUIRED)
-
-add_library(aegis_analysis MODULE
-    src/scripting/PythonBindings.cpp
-)
-target_link_libraries(aegis_analysis PRIVATE Qt6::Core ${OpenCASCADE_LIBRARIES} pybind11::module)
-set_target_properties(aegis_analysis PROPERTIES
-    PREFIX ""
-    OUTPUT_NAME "aegis_analysis"
+    BUNDLE DESTINATION .
 )
 
-message(STATUS "✅ AegisCAD configured with Qt6 + OpenCascade + full icon embedding.")
-
+message(STATUS "AegisCAD configured with Qt6, OpenCascade, and pybind11")

@@ -1,26 +1,28 @@
 #include "FeatureOps.h"
+
 #include <BRepPrimAPI_MakeBox.hxx>
 #include <BRepPrimAPI_MakeCylinder.hxx>
-#include <BRepPrimAPI_MakeSphere.hxx>
+#include <BRepOffsetAPI_MakeThickSolid.hxx>
+#include <TopoDS.hxx>
 
-std::shared_ptr<TopoDS_Shape> FeatureOps::build(const std::vector<FeatureNode>& tree)
-{
-    (void)tree;
-    // TODO: implement full parametric replay of the feature history
-    return nullptr;
+namespace FeatureOps {
+
+TopoDS_Shape makeBox(double size) {
+    return BRepPrimAPI_MakeBox(size, size, size).Shape();
 }
 
-TopoDS_Shape FeatureOps::makeBox(double dx, double dy, double dz)
-{
-    return BRepPrimAPI_MakeBox(dx, dy, dz).Shape();
+TopoDS_Shape makeCylinder(double radius, double height) {
+    return BRepPrimAPI_MakeCylinder(radius, height).Shape();
 }
 
-TopoDS_Shape FeatureOps::makeCylinder(double r, double h)
-{
-    return BRepPrimAPI_MakeCylinder(r, h).Shape();
+TopoDS_Shape hollowOut(const TopoDS_Shape &shape, double offset) {
+    try {
+        BRepOffsetAPI_MakeThickSolid hollow(shape, TopTools_ListOfShape(), offset);
+        return hollow.Shape();
+    } catch (...) {
+        return shape;
+    }
 }
 
-TopoDS_Shape FeatureOps::makeSphere(double r)
-{
-    return BRepPrimAPI_MakeSphere(r).Shape();
-}
+} // namespace FeatureOps
+

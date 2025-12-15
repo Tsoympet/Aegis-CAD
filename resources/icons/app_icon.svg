@@ -1,20 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
   <defs>
-    <linearGradient id="gearGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#666"/>
-      <stop offset="100%" stop-color="#222"/>
-    </linearGradient>
-
-    <linearGradient id="Agrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#00aaff"/>
-      <stop offset="100%" stop-color="#0050c0"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e1f24"/>
+      <stop offset="100%" stop-color="#2c2f36"/>
     </linearGradient>
   </defs>
-
-  <!-- Gear outline -->
-  <circle cx="256" cy="256" r="210" fill="none" stroke="url(#gearGrad)" stroke-width="40"/>
-
-  <!-- Stylized "A" -->
-  <polygon points="256,120 340,380 300,380 270,300 242,300 212,380 172,380"
-           fill="url(#Agrad)" stroke="none"/>
+  <rect x="0" y="0" width="256" height="256" rx="28" fill="url(#bg)"/>
+  <path d="M72 178 L128 54 L184 178 Z" fill="none" stroke="#00aaff" stroke-width="12" stroke-linejoin="round"/>
+  <circle cx="128" cy="158" r="12" fill="#00aaff"/>
+  <rect x="108" y="178" width="40" height="24" rx="6" fill="#00aaff" opacity="0.75"/>
 </svg>

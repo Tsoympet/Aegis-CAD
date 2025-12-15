@@ -1,30 +1,24 @@
 #pragma once
+
 #include <QDockWidget>
-#include <QImage>
-#include "ai/AegisReverseEngine.h"
+#include <QPlainTextEdit>
+#include <QPushButton>
 
-class QListWidget;
-class QTextEdit;
-class QLineEdit;
-
-class ReverseEngineerDock : public QDockWidget
-{
+class ReverseEngineerDock : public QDockWidget {
     Q_OBJECT
 public:
-    explicit ReverseEngineerDock(QWidget* parent = nullptr);
+    explicit ReverseEngineerDock(const QString &title, QWidget *parent = nullptr);
 
-    void setReverseEngine(AegisReverseEngine* engine);
+    QString promptText() const;
 
-private slots:
-    void onAddImage();
-    void onRunReverse();
+signals:
+    void generateShapeRequested(const QString &prompt);
+
+public slots:
+    void triggerGenerate();
 
 private:
-    AegisReverseEngine* m_engine = nullptr;
-    QLineEdit*   m_objectNameEdit = nullptr;
-    QLineEdit*   m_domainEdit = nullptr;
-    QListWidget* m_imageList = nullptr;
-    QTextEdit*   m_textSources = nullptr;
-    QTextEdit*   m_log = nullptr;
-    QList<QImage> m_images;
+    QPlainTextEdit *m_prompt{nullptr};
+    QPushButton *m_generate{nullptr};
 };
+

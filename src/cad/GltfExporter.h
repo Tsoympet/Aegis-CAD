@@ -1,9 +1,10 @@
 #pragma once
-#include <string>
+
+#include <QString>
 #include <TopoDS_Shape.hxx>
 
-class GltfExporter
-{
+class GltfExporter {
 public:
-    bool exportGltf(const std::string& path, const TopoDS_Shape& shape);
+    bool exportShape(const QString &path, const TopoDS_Shape &shape) const;
 };
+
