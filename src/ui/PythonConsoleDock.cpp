@@ -1,34 +1,46 @@
 #include "PythonConsoleDock.h"
-#include <QTextEdit>
-#include <QPlainTextEdit>
-#include <QPushButton>
+#include "../scripting/ScriptRunner.h"
+
 #include <QVBoxLayout>
-#include <QWidget>
+#include <QPushButton>
+#include <QLabel>
 
-PythonConsoleDock::PythonConsoleDock(QWidget* parent)
-    : QDockWidget(parent)
-{
-    setWindowTitle(tr("Python Console"));
-    auto* w = new QWidget(this);
-    auto* layout = new QVBoxLayout(w);
+PythonConsoleDock::PythonConsoleDock(const QString &title, QWidget *parent)
+    : QDockWidget(title, parent), m_runner(std::make_unique<ScriptRunner>()) {
+    auto *container = new QWidget(this);
+    auto *layout = new QVBoxLayout(container);
+    layout->setContentsMargins(6, 6, 6, 6);
 
-    m_output = new QTextEdit(w);
-    m_output->setReadOnly(true);
-    m_input = new QPlainTextEdit(w);
-    m_runBtn = new QPushButton(tr("Run Script"), w);
+    auto *header = new QLabel(tr("Embedded CPython via pybind11"), container);
+    header->setStyleSheet("color: #00aaff; font-weight: 600;");
+    layout->addWidget(header);
 
-    layout->addWidget(m_output, 2);
-    layout->addWidget(m_input, 1);
-    layout->addWidget(m_runBtn);
+    m_console = new QPlainTextEdit(container);
+    m_console->setReadOnly(true);
+    m_console->setPlaceholderText(tr("Python output"));
+    layout->addWidget(m_console, 1);
 
-    connect(m_runBtn, &QPushButton::clicked,
-            this, &PythonConsoleDock::onRunClicked);
+    m_input = new QLineEdit(container);
+    m_input->setPlaceholderText(tr("print('hello from AegisCAD')"));
+    layout->addWidget(m_input);
 
-    w->setLayout(layout);
-    setWidget(w);
+    auto *runBtn = new QPushButton(tr("Run"), container);
+    layout->addWidget(runBtn);
+
+    connect(runBtn, &QPushButton::clicked, this, &PythonConsoleDock::runBuffer);
+    connect(m_input, &QLineEdit::returnPressed, this, &PythonConsoleDock::runBuffer);
+
+    container->setLayout(layout);
+    setWidget(container);
 }
 
-void PythonConsoleDock::onRunClicked()
-{
-    m_output->append("Python bridge stub – not wired yet.");
+void PythonConsoleDock::appendOutput(const QString &text) {
+    m_console->appendPlainText(text);
 }
+
+void PythonConsoleDock::runBuffer() {
+    const QString code = m_input->text();
+    const auto result = m_runner->runSnippet(code);
+    appendOutput(result);
+}
+

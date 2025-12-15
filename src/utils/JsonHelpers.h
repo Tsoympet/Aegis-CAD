@@ -1,6 +1,11 @@
 #pragma once
+
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QString>
 
 namespace JsonHelpers {
-    QString pretty(const QString& json);
+QJsonObject loadFromFile(const QString &path);
+bool saveToFile(const QString &path, const QJsonObject &object);
 }
+

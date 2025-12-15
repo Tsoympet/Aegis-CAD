@@ -1,43 +1,11 @@
 #pragma once
-#include <memory>
-#include <vector>
-#include <string>
+
 #include <TopoDS_Shape.hxx>
+#include <QString>
 
-// --------------------
-// Parametric feature definitions
-// --------------------
-enum class FeatureKind {
-    SketchBase,
-    Extrude,
-    Cut,
-    Revolve,
-    Fillet,
-    Chamfer,
-    Shell,
-    Draft
-};
+namespace FeatureOps {
+TopoDS_Shape makeBox(double size);
+TopoDS_Shape makeCylinder(double radius, double height);
+TopoDS_Shape hollowOut(const TopoDS_Shape &shape, double offset);
+}
 
-struct FeatureNode {
-    int         id {0};
-    FeatureKind kind {FeatureKind::SketchBase};
-    std::string name;
-    int         parentId {0};
-};
-
-// --------------------
-// Feature operations API
-// --------------------
-class FeatureOps
-{
-public:
-    FeatureOps() = default;
-
-    // Parametric build (future replay of the feature tree)
-    std::shared_ptr<TopoDS_Shape> build(const std::vector<FeatureNode>& tree);
-
-    // Direct modeling helpers (usable from MainWindow / OccView)
-    static TopoDS_Shape makeBox(double dx, double dy, double dz);
-    static TopoDS_Shape makeCylinder(double radius, double height);
-    static TopoDS_Shape makeSphere(double radius);
-};

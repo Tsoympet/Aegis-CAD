@@ -1,37 +1,25 @@
 #pragma once
-#include <QDockWidget>
-#include <QTextEdit>
-#include <QLineEdit>
-#include <QVBoxLayout>
-#include <QKeyEvent>
-#include <QScrollBar>
-#include <QStringList>
-#include <QProcessEnvironment>
 
-/// Dockable Python interactive console for embedded scripting.
-class PythonConsoleDock : public QDockWidget
-{
+#include <QDockWidget>
+#include <QPlainTextEdit>
+#include <QLineEdit>
+#include <memory>
+
+class ScriptRunner;
+
+class PythonConsoleDock : public QDockWidget {
     Q_OBJECT
 public:
-    explicit PythonConsoleDock(QWidget* parent = nullptr);
-    ~PythonConsoleDock() override;
+    explicit PythonConsoleDock(const QString &title, QWidget *parent = nullptr);
 
-    void printMessage(const QString& msg, const QColor& color = Qt::lightGray);
-    void executeCommand(const QString& command);
-
-protected:
-    void keyPressEvent(QKeyEvent* e) override;
-
-private slots:
-    void onCommandEntered();
+public slots:
+    void runBuffer();
 
 private:
-    void initPython();
-    void finalizePython();
+    void appendOutput(const QString &text);
 
-    QTextEdit*  output = nullptr;
-    QLineEdit*  input  = nullptr;
-    QStringList history;
-    int         historyIndex = -1;
-    bool        initialized = false;
+    QPlainTextEdit *m_console{nullptr};
+    QLineEdit *m_input{nullptr};
+    std::unique_ptr<ScriptRunner> m_runner;
 };
+

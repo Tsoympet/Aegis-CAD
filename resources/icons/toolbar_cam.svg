@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
-  <!-- Tool head -->
-  <rect x="20" y="8" width="8" height="10" fill="none" stroke="#999" stroke-width="2"/>
-  <!-- Tool shank -->
-  <rect x="22" y="18" width="4" height="6" fill="#00aaff"/>
-  <!-- Toolpath curve -->
-  <path d="M10 38c6-8 12-10 28-4" fill="none" stroke="#00aaff" stroke-width="2" stroke-linecap="round"/>
-</svg>

@@ -1,25 +1,23 @@
 #pragma once
-#include <QObject>
-#include <QThread>
-#include "AnalysisTypes.h"
+
+#include <TopoDS_Shape.hxx>
+#include <QString>
+#include <memory>
 
 class BackendFEA_CalculiX;
 
-/// Central coordinator for FEA analysis execution.
-class AnalysisManager : public QObject
-{
-    Q_OBJECT
+class AnalysisManager {
 public:
-    explicit AnalysisManager(QObject* parent = nullptr);
-    ~AnalysisManager() override;
+    struct Result {
+        QString summary;
+    };
 
-    /// Launches a simulation case asynchronously.
-    void runCase(const QString& projectPath, AnalysisTemplateKind kind);
-
-signals:
-    void progressUpdated(int percent);
-    void finished(const AnalysisResult& result);
+    AnalysisManager();
+    void setModel(const TopoDS_Shape &shape);
+    Result runQuickCheck();
 
 private:
-    BackendFEA_CalculiX* m_backend = nullptr;
+    TopoDS_Shape m_shape;
+    std::unique_ptr<BackendFEA_CalculiX> m_backend;
 };
+

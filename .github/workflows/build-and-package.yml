@@ -1,1 +1,25 @@
+name: Build and Package
 
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Qt and dependencies
+        run: sudo apt-get update && sudo apt-get install -y qtbase5-dev libocct-data-exchange-dev libocct-ocaf-dev libocct-visualization-dev libglu1-mesa-dev
+      - name: Configure
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --config Release
+      - name: Package artifacts
+        if: success()
+        run: cmake --install build --prefix out
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegiscad-binaries
+          path: out

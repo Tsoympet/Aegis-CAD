@@ -1,8 +1,16 @@
 #pragma once
+
+#include <QSettings>
 #include <QString>
 
-class Settings
-{
+class Settings {
 public:
-    static QString dataDir();
+    Settings();
+
+    QVariant value(const QString &key, const QVariant &def = {}) const;
+    void setValue(const QString &key, const QVariant &value);
+
+private:
+    QSettings m_settings;
 };
+

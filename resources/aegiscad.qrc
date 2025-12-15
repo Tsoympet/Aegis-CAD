@@ -1,20 +1,12 @@
 <RCC>
   <qresource prefix="/">
     <file>icons/app_icon.svg</file>
-    <file>icons/app_icon_512.png</file>
-    <file>icons/app_icon_128.png</file>
-    <file>icons/app_icon.ico</file>
-    <file>icons/toolbar_extrude.svg</file>
-    <file>icons/toolbar_fillet.svg</file>
-    <file>icons/toolbar_analysis.svg</file>
     <file>icons/toolbar_ai.svg</file>
-    <file>icons/toolbar_cut.svg</file>
-    <file>icons/toolbar_shell.svg</file>
-    <file>icons/toolbar_draft.svg</file>
-    <file>icons/toolbar_revolve.svg</file>
-    <file>icons/toolbar_assembly.svg</file>
+    <file>icons/toolbar_analysis.svg</file>
+    <file>icons/toolbar_python.svg</file>
+    <file>icons/toolbar_reverse.svg</file>
     <file>icons/toolbar_import.svg</file>
     <file>icons/toolbar_export.svg</file>
-    <file>icons/toolbar_run.svg</file>
+    <file>examples/sample_part.stp</file>
   </qresource>
 </RCC>

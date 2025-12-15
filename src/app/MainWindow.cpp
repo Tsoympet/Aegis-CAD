@@ -1,234 +1,179 @@
 #include "MainWindow.h"
-#include "ui/OccView.h"
-#include "ui/AegisAssistantDock.h"
-#include "ui/PythonConsoleDock.h"
-#include "ui/ReverseEngineerDock.h"
-#include "ui/AnalysisDock.h"
-#include "utils/Logging.h"
+#include "ProjectIO.h"
+#include "../ui/OccView.h"
+#include "../ui/AnalysisLegendOverlay.h"
+#include "../ui/AegisAssistantDock.h"
+#include "../ui/ReverseEngineerDock.h"
+#include "../ui/PythonConsoleDock.h"
+#include "../cad/StepIgesIO.h"
+#include "../cad/GltfExporter.h"
+#include "../cad/PartRegistry.h"
+#include "../analysis/AnalysisManager.h"
+#include "../ai/AegisAIEngine.h"
+#include "../utils/Logging.h"
 
-#include <Bnd_Box.hxx>
-#include <BRepBndLib.hxx>
-#include <GProp_GProps.hxx>
-#include <BRepGProp.hxx>
-#include <QMenuBar>
 #include <QToolBar>
-#include <QStatusBar>
 #include <QFileDialog>
 #include <QMessageBox>
-#include <QLabel>
-#include <QIcon>
-#include <QActionGroup>
-#include <QStyle>
-#include <QDesktopServices>
-#include <QFileInfo>
-#include <QDebug>
+#include <QStatusBar>
+#include <QDockWidget>
+#include <QShortcut>
+#include <QAction>
+#include <QMenuBar>
 
-MainWindow::MainWindow(QWidget* parent)
-    : QMainWindow(parent)
-{
-    setWindowTitle("AegisCAD");
-    resize(1400, 900);
-
-    // ==========================
-    //  Core 3D Viewer
-    // ==========================
-    m_view = new OccView(this);
-    setCentralWidget(m_view);
-
-    // ==========================
-    //  Dock Widgets
-    // ==========================
-    m_aiDock      = new AegisAssistantDock(this);
-    m_pyDock      = new PythonConsoleDock(this);
-    m_revDock     = new ReverseEngineerDock(this);
-    m_analysisDock = new AnalysisDock(this);
-
-    createMenus();
-    createToolBar();
-    createDocks();
-    createStatusBar();
-
-    // ==========================
-    //  Signal Connections
-    // ==========================
-    connect(m_analysisDock, &AnalysisDock::analysisReady,
-            m_view, &OccView::showAnalysisResults);
-
-    // 🔗 Reverse Engineer → Viewer integration
-    connect(m_revDock, &ReverseEngineerDock::modelGenerated,
-            this, [this](const QString& path) {
-                m_view->loadBrepModel(path);
-                Logging::info("Loaded reverse-engineered model: " + path);
-                m_statusLabel->setText("Model loaded: " + QFileInfo(path).fileName());
-
-                // Compute bounding box + basic metadata
-                BRep_Builder builder;
-                TopoDS_Shape shape;
-                if (BRepTools::Read(shape, path.toStdString().c_str(), builder)) {
-                    Bnd_Box box;
-                    BRepBndLib::Add(shape, box);
-                    Standard_Real xmin, ymin, zmin, xmax, ymax, zmax;
-                    box.Get(xmin, ymin, zmin, xmax, ymax, zmax);
-                    double dx = xmax - xmin, dy = ymax - ymin, dz = zmax - zmin;
-
-                    GProp_GProps prop;
-                    BRepGProp::VolumeProperties(shape, prop);
-                    double volume = prop.Mass(); // OCC returns volume as mass (ρ=1)
-                    double density = 7800; // default steel assumption
-                    double massKg = volume * density * 1e-9;
-
-                    QString meta = QString("Dims: %.2f×%.2f×%.2f m | Est. Mass: %.1f kg")
-                                        .arg(dx / 1000.0, 0, 'f', 2)
-                                        .arg(dy / 1000.0, 0, 'f', 2)
-                                        .arg(dz / 1000.0, 0, 'f', 2)
-                                        .arg(massKg, 0, 'f', 1);
-                    m_statusLabel->setText(meta);
-
-                    // Update AI context for reasoning
-                    m_aiDock->blockSignals(true);
-                    m_aiDock->appendMessage("System",
-                        "Model metadata synced: " + meta,
-                        QColor("#55ccff"));
-                    m_aiDock->blockSignals(false);
-                }
-            });
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent),
+      m_analysis(std::make_unique<AnalysisManager>()),
+      m_aiEngine(std::make_unique<AegisAIEngine>()),
+      m_partRegistry(std::make_unique<PartRegistry>()),
+      m_io(std::make_unique<StepIgesIO>()),
+      m_gltf(std::make_unique<GltfExporter>()),
+      m_projectIO(std::make_unique<ProjectIO>()) {
+    setupUi();
+    setupToolbar();
+    setupDocks();
+    loadSamplePart();
 }
 
 MainWindow::~MainWindow() = default;
 
-// =============================================================
-//                       UI Construction
-// =============================================================
+void MainWindow::setupUi() {
+    resize(1280, 800);
+    setWindowTitle(tr("AegisCAD"));
 
-void MainWindow::createMenus()
-{
-    // --- File menu ---
-    QMenu* file = menuBar()->addMenu("&File");
-    m_actionNew    = file->addAction(QIcon(":/icons/toolbar_new.svg"), "&New Sketch", this, &MainWindow::newSketch);
-    m_actionImport = file->addAction(QIcon(":/icons/toolbar_import.svg"), "&Import CAD...", this, &MainWindow::importCAD);
-    m_actionExport = file->addAction(QIcon(":/icons/toolbar_export.svg"), "&Export CAD...", this, &MainWindow::exportCAD);
-    file->addSeparator();
-    file->addAction("&Exit", this, &MainWindow::close);
+    m_view = new OccView(this);
+    setCentralWidget(m_view);
 
-    // --- Tools menu ---
-    QMenu* tools = menuBar()->addMenu("&Tools");
-    m_actionAnalyze = tools->addAction(QIcon(":/icons/toolbar_analysis.svg"), "&Run Analysis", this, &MainWindow::runAnalysis);
-    m_actionAI      = tools->addAction(QIcon(":/icons/toolbar_ai.svg"), "Open &Aegis AI", this, &MainWindow::showAIDock);
-    QAction* actionPython = tools->addAction(QIcon(":/icons/toolbar_python.svg"), "Open &Python Console", [this] {
-        m_pyDock->show(); m_pyDock->raise();
-    });
+    m_legend = new AnalysisLegendOverlay(m_view);
+    m_legend->setAttribute(Qt::WA_TransparentForMouseEvents);
+    m_legend->hide();
 
-    // --- Help menu ---
-    QMenu* help = menuBar()->addMenu("&Help");
-    help->addAction("About", [this] {
-        QMessageBox::about(this, "About AegisCAD",
-            "AegisCAD 1.0 — Integrated CAD, FEA, AI & Reverse Engineering Suite.\n"
-            "© 2025 Aegis Engineering Systems.");
-    });
+    statusBar()->showMessage(tr("Ready"));
 }
 
-void MainWindow::createToolBar()
-{
-    QToolBar* tb = addToolBar("Main Toolbar");
-    tb->setMovable(false);
-    tb->setIconSize(QSize(24, 24));
-    tb->setStyleSheet("QToolBar { background: #2a2a2a; border: none; }");
-
-    auto addActionStyled = [&](QAction* act, const QString& tip) {
-        act->setToolTip(tip);
-        tb->addAction(act);
-        tb->widgetForAction(act)->setStyleSheet(
-            "QToolButton { border: none; padding: 4px; } "
-            "QToolButton:hover { background-color: #3a3a3a; }");
-    };
-
-    addActionStyled(m_actionNew, "Start a new sketch");
-    addActionStyled(m_actionImport, "Import STEP/IGES file");
-    addActionStyled(m_actionExport, "Export GLTF/STEP");
-    tb->addSeparator();
-    addActionStyled(m_actionAnalyze, "Run analysis");
-    tb->addSeparator();
-    addActionStyled(m_actionAI, "Open Aegis AI Assistant");
-
-    tb->addSeparator();
-    QAction* actConsole = tb->addAction(QIcon(":/icons/toolbar_python.svg"), "");
-    actConsole->setToolTip("Toggle Python Console");
-    connect(actConsole, &QAction::triggered, [this] {
-        if (m_pyDock->isHidden()) { m_pyDock->show(); m_pyDock->raise(); }
-        else m_pyDock->hide();
-    });
-}
-
-void MainWindow::createDocks()
-{
+void MainWindow::setupDocks() {
+    m_aiDock = new AegisAssistantDock(tr("AI Assistant"), this);
     addDockWidget(Qt::RightDockWidgetArea, m_aiDock);
-    addDockWidget(Qt::BottomDockWidgetArea, m_pyDock);
-    addDockWidget(Qt::RightDockWidgetArea, m_revDock);
-    addDockWidget(Qt::RightDockWidgetArea, m_analysisDock);
+    connect(m_aiDock, &AegisAssistantDock::querySubmitted, this, &MainWindow::evaluateAIAssistant);
 
-    m_aiDock->hide();
-    m_pyDock->hide();
-    m_revDock->hide();
-    m_analysisDock->hide();
+    m_reverseDock = new ReverseEngineerDock(tr("Reverse Engineer"), this);
+    addDockWidget(Qt::LeftDockWidgetArea, m_reverseDock);
+    connect(m_reverseDock, &ReverseEngineerDock::generateShapeRequested, this, &MainWindow::regenerateFromReverse);
+
+    m_pythonDock = new PythonConsoleDock(tr("Python Console"), this);
+    addDockWidget(Qt::BottomDockWidgetArea, m_pythonDock);
+
+    // Quick hide/show shortcuts
+    new QShortcut(QKeySequence("Ctrl+`"), this, [this]() { m_pythonDock->setVisible(!m_pythonDock->isVisible()); });
 }
 
-void MainWindow::createStatusBar()
-{
-    m_statusLabel = new QLabel("Ready", this);
-    statusBar()->addPermanentWidget(m_statusLabel);
-    statusBar()->setStyleSheet("QStatusBar { background: #202020; color: #aaa; }");
+void MainWindow::setupToolbar() {
+    auto *toolbar = addToolBar(tr("Aegis"));
+    toolbar->setMovable(false);
+
+    QAction *importStep = toolbar->addAction(QIcon(":/icons/toolbar_import.svg"), tr("Import STEP"), this, &MainWindow::openStepFile);
+    importStep->setShortcut(QKeySequence::Open);
+
+    QAction *exportStep = toolbar->addAction(QIcon(":/icons/toolbar_export.svg"), tr("Export STEP"), this, &MainWindow::exportStepFile);
+    QAction *exportGltf = toolbar->addAction(QIcon(":/icons/toolbar_analysis.svg"), tr("Export glTF"), this, &MainWindow::exportGltfFile);
+
+    toolbar->addSeparator();
+    toolbar->addAction(QIcon(":/icons/toolbar_analysis.svg"), tr("Run Analysis"), this, &MainWindow::runAnalysis);
+    toolbar->addAction(QIcon(":/icons/toolbar_ai.svg"), tr("AI"), this, [this]() {
+        evaluateAIAssistant(tr("Summarize model"));
+    });
+    toolbar->addAction(QIcon(":/icons/toolbar_python.svg"), tr("Run Script"), m_pythonDock, &PythonConsoleDock::runBuffer);
+    toolbar->addAction(QIcon(":/icons/toolbar_reverse.svg"), tr("Reverse"), m_reverseDock, &ReverseEngineerDock::triggerGenerate);
 }
 
-// =============================================================
-//                        Core Operations
-// =============================================================
+void MainWindow::openStepFile() {
+    const QString file = QFileDialog::getOpenFileName(this, tr("Open STEP/IGES"), QString(), tr("STEP/IGES (*.stp *.step *.igs *.iges)"));
+    if (file.isEmpty()) return;
 
-void MainWindow::newSketch()
-{
-    Logging::info("Creating new sketch...");
-    m_statusLabel->setText("New sketch created");
+    auto shape = m_io->importFile(file);
+    if (shape.IsNull()) {
+        QMessageBox::warning(this, tr("Import failed"), tr("No geometry could be loaded."));
+        return;
+    }
+
+    m_partRegistry->addPart(file, shape);
+    m_view->displayShape(shape);
+    statusBar()->showMessage(tr("Loaded %1").arg(QFileInfo(file).fileName()), 3000);
 }
 
-void MainWindow::importCAD()
-{
-    const QString path = QFileDialog::getOpenFileName(
-        this, "Import CAD", QString(), "STEP/IGES Files (*.stp *.step *.igs *.iges)");
-    if (path.isEmpty()) return;
+void MainWindow::exportStepFile() {
+    const QString file = QFileDialog::getSaveFileName(this, tr("Export STEP"), QString(), tr("STEP (*.stp *.step)"));
+    if (file.isEmpty()) return;
 
-    if (m_stepIO.importShape(path)) {
-        Logging::info("Imported CAD: " + path);
-        m_statusLabel->setText("Imported " + QFileInfo(path).fileName());
+    auto shape = m_partRegistry->activeShape();
+    if (shape.IsNull()) {
+        QMessageBox::warning(this, tr("Nothing to export"), tr("No geometry in the workspace."));
+        return;
+    }
+
+    if (!m_io->exportStep(file, shape)) {
+        QMessageBox::warning(this, tr("Export failed"), tr("The STEP file could not be written."));
     } else {
-        QMessageBox::warning(this, "Import", "Failed to import the selected CAD file.");
+        statusBar()->showMessage(tr("Exported STEP to %1").arg(QFileInfo(file).fileName()), 3000);
     }
 }
 
-void MainWindow::exportCAD()
-{
-    const QString path = QFileDialog::getSaveFileName(
-        this, "Export CAD", QString(), "GLTF (*.gltf);;STEP (*.stp *.step)");
-    if (path.isEmpty()) return;
+void MainWindow::exportGltfFile() {
+    const QString file = QFileDialog::getSaveFileName(this, tr("Export glTF"), QString(), tr("glTF (*.gltf)"));
+    if (file.isEmpty()) return;
 
-    bool ok = false;
-    if (path.endsWith(".gltf"))
-        ok = m_gltfExporter.exportScene(path);
-    else
-        ok = m_stepIO.exportShape(path);
+    auto shape = m_partRegistry->activeShape();
+    if (shape.IsNull()) {
+        QMessageBox::warning(this, tr("Nothing to export"), tr("No geometry in the workspace."));
+        return;
+    }
 
-    m_statusLabel->setText(ok ? "Exported " + QFileInfo(path).fileName()
-                              : "Export failed");
-}
-
-void MainWindow::runAnalysis()
-{
-    if (m_analysisDock->isHidden()) {
-        m_analysisDock->show();
-        m_analysisDock->raise();
+    if (!m_gltf->exportShape(file, shape)) {
+        QMessageBox::warning(this, tr("Export failed"), tr("The glTF file could not be written."));
+    } else {
+        statusBar()->showMessage(tr("Exported glTF to %1").arg(QFileInfo(file).fileName()), 3000);
     }
 }
 
-void MainWindow::showAIDock()
-{
-    m_aiDock->show();
-    m_aiDock->raise();
+void MainWindow::runAnalysis() {
+    auto shape = m_partRegistry->activeShape();
+    if (shape.IsNull()) {
+        QMessageBox::information(this, tr("Analysis"), tr("Load or generate geometry before running analysis."));
+        return;
+    }
+
+    m_analysis->setModel(shape);
+    auto result = m_analysis->runQuickCheck();
+    m_legend->setResultText(result.summary);
+    m_legend->show();
+    statusBar()->showMessage(tr("Analysis complete"), 3000);
 }
+
+void MainWindow::regenerateFromReverse(const QString &prompt) {
+    auto shape = m_partRegistry->synthesizeFromPrompt(prompt);
+    if (shape.IsNull()) {
+        QMessageBox::warning(this, tr("Reverse engineer"), tr("Could not synthesize geometry from the prompt."));
+        return;
+    }
+    m_view->displayShape(shape);
+    statusBar()->showMessage(tr("Generated geometry from prompt"), 2000);
+}
+
+void MainWindow::evaluateAIAssistant(const QString &prompt) {
+    const QString guidance = m_aiEngine->evaluate(prompt);
+    if (m_aiDock) {
+        m_aiDock->appendResponse(guidance);
+    }
+    statusBar()->showMessage(tr("AI assistant responded"), 2000);
+}
+
+void MainWindow::loadSamplePart() {
+    const QString samplePath = ":/examples/sample_part.stp";
+    auto shape = m_io->importFile(samplePath);
+    if (!shape.IsNull()) {
+        m_partRegistry->addPart("Sample Cube", shape);
+        m_view->displayShape(shape);
+        statusBar()->showMessage(tr("Loaded sample model"), 2000);
+    }
+}
+

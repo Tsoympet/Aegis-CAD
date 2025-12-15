@@ -1,85 +1,37 @@
 #include "ReverseEngineerDock.h"
-#include <QWidget>
+
 #include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QListWidget>
-#include <QTextEdit>
-#include <QLineEdit>
-#include <QPushButton>
-#include <QFileDialog>
+#include <QLabel>
 
-ReverseEngineerDock::ReverseEngineerDock(QWidget* parent)
-    : QDockWidget(parent)
-{
-    setWindowTitle(tr("AI Reverse Engineer"));
+ReverseEngineerDock::ReverseEngineerDock(const QString &title, QWidget *parent)
+    : QDockWidget(title, parent) {
+    auto *container = new QWidget(this);
+    auto *layout = new QVBoxLayout(container);
+    layout->setContentsMargins(6, 6, 6, 6);
 
-    auto* w = new QWidget(this);
-    auto* layout = new QVBoxLayout(w);
+    auto *hint = new QLabel(tr("Describe the target object or drop reference imagery. AegisCAD will generate a parametric stub."), container);
+    hint->setWordWrap(true);
+    hint->setStyleSheet("color: #cccccc;");
+    layout->addWidget(hint);
 
-    auto* top = new QHBoxLayout();
-    m_objectNameEdit = new QLineEdit(w);
-    m_objectNameEdit->setPlaceholderText(tr("Object name (e.g. Tiger II turret)"));
-    m_domainEdit = new QLineEdit(w);
-    m_domainEdit->setPlaceholderText(tr("Domain (armor, aircraft, ship, car...)"));
-    top->addWidget(m_objectNameEdit);
-    top->addWidget(m_domainEdit);
+    m_prompt = new QPlainTextEdit(container);
+    m_prompt->setPlaceholderText(tr("e.g., \"Create a 50mm cube with a 10mm through-hole\""));
+    layout->addWidget(m_prompt, 1);
 
-    m_imageList = new QListWidget(w);
-    m_textSources = new QTextEdit(w);
-    m_textSources->setPlaceholderText(tr("Paste specs / wiki info / measurements here..."));
-    m_log = new QTextEdit(w);
-    m_log->setReadOnly(true);
+    m_generate = new QPushButton(tr("Generate"), container);
+    layout->addWidget(m_generate);
 
-    auto* buttons = new QHBoxLayout();
-    auto* addImg  = new QPushButton(tr("Add Image"), w);
-    auto* runBtn  = new QPushButton(tr("Run Reverse"), w);
-    buttons->addWidget(addImg);
-    buttons->addWidget(runBtn);
+    connect(m_generate, &QPushButton::clicked, this, &ReverseEngineerDock::triggerGenerate);
 
-    layout->addLayout(top);
-    layout->addWidget(m_imageList);
-    layout->addWidget(m_textSources, 1);
-    layout->addLayout(buttons);
-    layout->addWidget(m_log, 1);
-
-    connect(addImg, &QPushButton::clicked,
-            this, &ReverseEngineerDock::onAddImage);
-    connect(runBtn, &QPushButton::clicked,
-            this, &ReverseEngineerDock::onRunReverse);
-
-    w->setLayout(layout);
-    setWidget(w);
+    container->setLayout(layout);
+    setWidget(container);
 }
 
-void ReverseEngineerDock::setReverseEngine(AegisReverseEngine* engine)
-{
-    m_engine = engine;
+QString ReverseEngineerDock::promptText() const {
+    return m_prompt->toPlainText();
 }
 
-void ReverseEngineerDock::onAddImage()
-{
-    const QString path = QFileDialog::getOpenFileName(this, tr("Select image"), QString(), tr("Images (*.png *.jpg *.jpeg)"));
-    if (path.isEmpty())
-        return;
-    QImage img(path);
-    if (img.isNull())
-        return;
-    m_images.push_back(img);
-    m_imageList->addItem(path);
+void ReverseEngineerDock::triggerGenerate() {
+    emit generateShapeRequested(promptText());
 }
 
-void ReverseEngineerDock::onRunReverse()
-{
-    if (!m_engine)
-    {
-        m_log->append("No reverse engine configured.");
-        return;
-    }
-    ReverseSpec spec;
-    spec.objectName = m_objectNameEdit->text();
-    spec.domain = m_domainEdit->text();
-    spec.textInfo = m_textSources->toPlainText();
-    spec.imageCount = m_images.size();
-    ReverseResult res = m_engine->runReverse(spec);
-    m_log->append("Reverse summary: " + res.summary);
-}
