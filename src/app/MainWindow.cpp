@@ -75,7 +75,7 @@ void MainWindow::setupDocks() {
     m_profilerDock->attachView(m_view);
     addDockWidget(Qt::RightDockWidgetArea, m_profilerDock);
 
-    m_pythonDock = new PythonConsoleDock(tr("Python Console"), this);
+    m_pythonDock = new PythonConsoleDock(tr("Python Console"), m_view, m_analysis.get(), m_aiEngine.get(), m_projectIO.get(), this);
     addDockWidget(Qt::BottomDockWidgetArea, m_pythonDock);
 
     // Quick hide/show shortcuts

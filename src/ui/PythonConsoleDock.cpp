@@ -5,8 +5,13 @@
 #include <QPushButton>
 #include <QLabel>
 
-PythonConsoleDock::PythonConsoleDock(const QString &title, QWidget *parent)
-    : QDockWidget(title, parent), m_runner(std::make_unique<ScriptRunner>()) {
+PythonConsoleDock::PythonConsoleDock(const QString &title,
+                                     OccView *view,
+                                     AnalysisManager *analysis,
+                                     AegisAIEngine *ai,
+                                     ProjectIO *projectIO,
+                                     QWidget *parent)
+    : QDockWidget(title, parent), m_runner(std::make_unique<ScriptRunner>(view, analysis, ai, projectIO)) {
     auto *container = new QWidget(this);
     auto *layout = new QVBoxLayout(container);
     layout->setContentsMargins(6, 6, 6, 6);

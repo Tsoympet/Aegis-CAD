@@ -32,6 +32,8 @@ public:
     void setStressSnapshot(const AnalysisManager::Result &result);
 
     Advice evaluate(const QString &prompt) const;
+    Advice query(const QString &prompt) const { return evaluate(prompt); }
+    Advice optimize(const QString &objective) const;
 
 private:
     QString materialGuidance(const PartInsight &part) const;

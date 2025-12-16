@@ -32,6 +32,8 @@ public:
     void displayPart(const QString &id, const TopoDS_Shape &shape, const Quantity_Color &color = Quantity_Color(0.8, 0.8, 0.8, Quantity_TOC_RGB));
     void setPartVisible(const QString &id, bool visible);
     void setFeatureColor(const QString &id, const Quantity_Color &color);
+    void clearView();
+    void zoomToFit();
     void enableSectionPlane(const gp_Pln &plane);
     void disableSectionPlane();
     void enableCamSelection(bool faces, bool edges);

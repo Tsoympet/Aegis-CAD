@@ -143,6 +143,22 @@ void OccView::displayPart(const QString &id, const TopoDS_Shape &shape, const Qu
     update();
 }
 
+void OccView::clearView() {
+    if (!m_initialized) return;
+    m_parts.clear();
+    m_cachedParts.clear();
+    clearToolpathPreview();
+    m_context->RemoveAll(false);
+    m_view->FitAll();
+    update();
+}
+
+void OccView::zoomToFit() {
+    if (!m_initialized) return;
+    m_view->FitAll();
+    update();
+}
+
 void OccView::setPartVisible(const QString &id, bool visible) {
     if (!m_initialized) return;
     auto it = m_parts.find(id);
