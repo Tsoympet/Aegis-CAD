@@ -48,6 +48,19 @@ ctest --test-dir build --output-on-failure --build-config Release
 
 ### Ubuntu (GCC)
 ```bash
+# Option 1: Manifest-mode vcpkg (recommended in CI and behind strict proxies)
+git clone https://github.com/microsoft/vcpkg.git
+./vcpkg/bootstrap-vcpkg.sh
+
+# Configure with the vcpkg toolchain to pull Qt/OpenCascade/pybind11 from the manifest
+cmake -B build -S . \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_TOOLCHAIN_FILE=$PWD/vcpkg/scripts/buildsystems/vcpkg.cmake
+
+cmake --build build -j
+ctest --test-dir build --output-on-failure
+
+# Option 2: System packages (when apt repositories are reachable)
 sudo apt-get update
 sudo apt-get install -y qtbase5-dev libocct-data-exchange-dev libocct-ocaf-dev libocct-visualization-dev pybind11-dev
 cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
