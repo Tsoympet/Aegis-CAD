@@ -1,40 +1,38 @@
-#include <QtTest/QtTest>
-#include <QTemporaryDir>
-#include <QFile>
-#include <QJsonObject>
-
 #include "utils/JsonHelpers.h"
 #include "utils/Settings.h"
 
-class CoreTests : public QObject {
-    Q_OBJECT
+#include <cassert>
+#include <filesystem>
+#include <iostream>
+#include <variant>
 
-private slots:
-    void jsonHelpers_roundTrip();
-    void settings_roundTrip();
-};
+namespace {
+void testJsonHelpers(const std::filesystem::path &tempDir) {
+    std::filesystem::create_directories(tempDir);
+    const auto path = tempDir / "sample.json";
 
-void CoreTests::jsonHelpers_roundTrip() {
-    QTemporaryDir dir;
-    QVERIFY2(dir.isValid(), "Temporary directory should be valid");
+    JsonHelpers::JsonObject object{{"name", std::string("cube")}, {"size", int64_t{42}}};
+    const bool saved = JsonHelpers::saveToFile(path, object);
+    assert(saved && "Saving JSON should succeed");
 
-    const QString path = dir.filePath("sample.json");
-    QJsonObject object;
-    object["name"] = "cube";
-    object["size"] = 42;
-
-    QVERIFY2(JsonHelpers::saveToFile(path, object), "Saving JSON should succeed");
-
-    const QJsonObject loaded = JsonHelpers::loadFromFile(path);
-    QCOMPARE(loaded.value("name").toString(), QString("cube"));
-    QCOMPARE(loaded.value("size").toInt(), 42);
+    const auto loaded = JsonHelpers::loadFromFile(path);
+    assert(loaded.at("name") == JsonHelpers::JsonValue{std::string("cube")});
+    assert(std::get<int64_t>(loaded.at("size")) == 42);
 }
 
-void CoreTests::settings_roundTrip() {
-    Settings settings;
-    settings.setValue("unitTest/key", 123);
-    QCOMPARE(settings.value("unitTest/key").toInt(), 123);
+void testSettings(const std::filesystem::path &tempDir) {
+    const auto settingsPath = tempDir / "settings.json";
+    Settings settings(settingsPath);
+    settings.setValue("unitTest/key", "123");
+    assert(settings.value("unitTest/key") == "123");
+}
 }
 
-QTEST_APPLESS_MAIN(CoreTests)
-#include "CoreTests.moc"
+int main() {
+    const auto tempDir = std::filesystem::temp_directory_path() / "aegiscad-tests";
+    testJsonHelpers(tempDir);
+    testSettings(tempDir);
+    std::cout << "All tests passed\n";
+    return 0;
+}
+

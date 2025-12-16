@@ -1,10 +1,10 @@
 #pragma once
 
-#include <QString>
+#include <string>
 
 namespace Logging {
 void init();
-void info(const QString &msg);
-void warn(const QString &msg);
+void info(const std::string &msg);
+void warn(const std::string &msg);
 }
 
