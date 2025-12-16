@@ -38,6 +38,7 @@
 #endif
 
 #include <Bnd_Box.hxx>
+#include <algorithm>
 #include <BRepBndLib.hxx>
 #include <TColgp_Array1OfPnt.hxx>
 
@@ -63,8 +64,8 @@ void OccView::initializeViewer() {
 #else
     Handle(Aspect_DisplayConnection) display = new Aspect_DisplayConnection();
 #endif
-    Handle(OpenGl_GraphicDriver) driver = new OpenGl_GraphicDriver(display);
-    m_viewer = new V3d_Viewer(driver);
+    m_driver = new OpenGl_GraphicDriver(display);
+    m_viewer = new V3d_Viewer(m_driver);
     m_viewer->SetDefaultLights();
     m_viewer->SetLightOn();
 
@@ -83,7 +84,7 @@ void OccView::initializeViewer() {
     m_context = new AIS_InteractiveContext(m_viewer);
     configureCulling();
     m_stats = {};
-    m_stats.gpuMemoryMB = driver->InquireTextureMemory() / 1024.0 / 1024.0;
+    m_stats.gpuMemoryMB = m_driver->InquireTextureMemory() / 1024.0 / 1024.0;
     m_initialized = true;
 }
 
@@ -145,7 +146,7 @@ void OccView::displayPart(const QString &id, const TopoDS_Shape &shape, const Qu
 
     m_context->Display(displayed, Standard_True);
     m_view->FitAll();
-    updateFrameStats();
+    updateFrameStats(0.0);
     update();
 }
 
@@ -338,12 +339,18 @@ void OccView::configureCulling() {
     m_context->DefaultDrawer()->SetFaceBoundaryDraw(false);
 }
 
-void OccView::updateFrameStats() {
-    static QElapsedTimer timer;
-    static int frames = 0;
-    if (!timer.isValid()) {
-        timer.start();
+void OccView::updateFrameStats(double frameMs) {
+    if (frameMs > 0.0) {
+        m_stats.frameTimeMs = frameMs;
+        ++m_frameSamples;
+        m_accumulatedFrameMs += frameMs;
+        m_stats.averageFrameTimeMs = m_accumulatedFrameMs / static_cast<double>(m_frameSamples);
+        m_peakFrameMs = std::max(m_peakFrameMs, frameMs);
+        m_stats.peakFrameTimeMs = m_peakFrameMs;
+        m_stats.fps = frameMs > 0.0 ? 1000.0 / frameMs : 0.0;
     }
+    if (!m_driver.IsNull()) {
+        m_stats.gpuMemoryMB = m_driver->InquireTextureMemory() / 1024.0 / 1024.0;
     ++frames;
     const qint64 elapsed = timer.elapsed();
     if (elapsed > 0) {
@@ -378,8 +385,10 @@ double OccView::viewDistanceTo(const gp_Pnt &point) const {
 
 void OccView::paintEvent(QPaintEvent *) {
     if (m_initialized) {
+        m_frameTimer.restart();
         m_view->Redraw();
-        updateFrameStats();
+        const double elapsed = m_frameTimer.elapsed();
+        updateFrameStats(elapsed);
     }
 }
 

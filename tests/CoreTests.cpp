@@ -21,6 +21,7 @@ class CoreTests : public QObject {
 private slots:
     void jsonHelpers_roundTrip();
     void settings_roundTrip();
+    void jsonHelpers_benchmark();
     void step_roundTrip();
     void iges_roundTrip();
     void gltf_export();
@@ -58,6 +59,19 @@ void CoreTests::settings_roundTrip() {
     QCOMPARE(settings.value("unitTest/key").toInt(), 123);
 }
 
+void CoreTests::jsonHelpers_benchmark() {
+    QTemporaryDir dir;
+    QVERIFY2(dir.isValid(), "Temporary directory should be valid");
+
+    const QString path = dir.filePath("sample.json");
+    QJsonObject object;
+    object["name"] = "cube";
+    object["size"] = 42;
+
+    QBENCHMARK {
+        JsonHelpers::saveToFile(path, object);
+        JsonHelpers::loadFromFile(path);
+    }
 void ScriptingTests::bindings_are_registered() {
     ScriptRunner runner;
     const QString result = runner.runSnippet(R"(import aegiscad

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QElapsedTimer>
 #include <QWidget>
 #include <AIS_InteractiveContext.hxx>
 #include <AIS_PolyLine.hxx>
@@ -9,6 +10,7 @@
 #include <TopoDS_Face.hxx>
 #include <TopoDS_Shape.hxx>
 #include <V3d_View.hxx>
+#include <OpenGl_GraphicDriver.hxx>
 #include <memory>
 #include <optional>
 #include <unordered_map>
@@ -46,6 +48,8 @@ public:
     struct FrameStats {
         double fps{0.0};
         double frameTimeMs{0.0};
+        double averageFrameTimeMs{0.0};
+        double peakFrameTimeMs{0.0};
         double gpuMemoryMB{0.0};
         std::size_t cachedTessellations{0};
         std::size_t activeParts{0};
@@ -73,12 +77,13 @@ private:
     void updateClipPlanes();
     Quantity_Color interpolateColor(double t) const;
     void configureCulling();
-    void updateFrameStats();
+    void updateFrameStats(double frameMs);
     double viewDistanceTo(const gp_Pnt &point) const;
 
     Handle(V3d_Viewer) m_viewer;
     Handle(AIS_InteractiveContext) m_context;
     Handle(V3d_View) m_view;
+    Handle(OpenGl_GraphicDriver) m_driver;
     Handle(Graphic3d_ClipPlane) m_clipPlane;
     bool m_initialized{false};
     Qt::MouseButton m_lastButton{Qt::NoButton};
@@ -90,6 +95,10 @@ private:
     bool m_camSelectEdges{false};
     std::vector<Handle(AIS_PolyLine)> m_toolpaths;
     FrameStats m_stats;
+    QElapsedTimer m_frameTimer;
+    double m_accumulatedFrameMs{0.0};
+    std::size_t m_frameSamples{0};
+    double m_peakFrameMs{0.0};
     double m_lodDistance{1500.0};
     double m_lodCoarse{0.8};
     std::size_t m_cacheLimit{32};
