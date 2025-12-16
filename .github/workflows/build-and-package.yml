@@ -18,13 +18,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y qtbase5-dev libocct-data-exchange-dev libocct-ocaf-dev libocct-visualization-dev libglu1-mesa-dev pybind11-dev
+      - name: Restore vcpkg dependencies
+        id: vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgJson: "${{ github.workspace }}/vcpkg.json"
 
       - name: Configure
-        run: cmake -B ${{ env.CMAKE_BUILD_DIR }} -S . -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+        run: cmake -B ${{ env.CMAKE_BUILD_DIR }} -S . -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DCMAKE_TOOLCHAIN_FILE=${{ steps.vcpkg.outputs.vcpkgRoot }}/scripts/buildsystems/vcpkg.cmake
 
       - name: Build
         run: cmake --build ${{ env.CMAKE_BUILD_DIR }} --config ${{ env.BUILD_TYPE }}
@@ -56,13 +57,14 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
       - name: Restore vcpkg dependencies
+        id: vcpkg
         uses: lukka/run-vcpkg@v11
         with:
           vcpkgJson: "${{ github.workspace }}\\vcpkg.json"
 
       - name: Configure
         run: |
-          cmake -B $env:CMAKE_BUILD_DIR -S . -A x64 -DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT\\scripts\\buildsystems\\vcpkg.cmake -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE
+          cmake -B $env:CMAKE_BUILD_DIR -S . -A x64 -DCMAKE_TOOLCHAIN_FILE="${{ steps.vcpkg.outputs.vcpkgRoot }}\\scripts\\buildsystems\\vcpkg.cmake" -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE
 
       - name: Build
         run: cmake --build $env:CMAKE_BUILD_DIR --config $env:BUILD_TYPE
