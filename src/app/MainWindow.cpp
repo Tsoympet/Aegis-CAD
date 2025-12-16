@@ -38,6 +38,7 @@ MainWindow::MainWindow(QWidget *parent)
       m_projectIO(std::make_unique<ProjectIO>()) {
     setupUi();
     setupToolbar();
+    setupMenus();
     setupDocks();
     loadSamplePart();
     Logging::info(tr("Main window initialized"));
@@ -109,6 +110,17 @@ void MainWindow::setupToolbar() {
     toolbar->addAction(QIcon(":/icons/toolbar_reverse.svg"), tr("Reverse"), m_reverseDock, &ReverseEngineerDock::triggerGenerate);
 }
 
+void MainWindow::setupMenus() {
+    auto *analysisMenu = menuBar()->addMenu(tr("Analysis"));
+    analysisMenu->addAction(tr("Submit CalculiX job"), this, &MainWindow::submitCalculixJob);
+
+    auto *camMenu = menuBar()->addMenu(tr("CAM"));
+    camMenu->addAction(tr("Preview current toolpath"), this, &MainWindow::previewCamPath);
+
+    auto *aiMenu = menuBar()->addMenu(tr("AI"));
+    aiMenu->addAction(tr("Reload AI rule set..."), this, &MainWindow::reloadAiRules);
+}
+
 void MainWindow::openStepFile() {
     const QString file = QFileDialog::getOpenFileName(this, tr("Open STEP/IGES"), QString(), tr("STEP/IGES (*.stp *.step *.igs *.iges)"));
     if (file.isEmpty()) return;
@@ -166,6 +178,37 @@ void MainWindow::exportGltfFile() {
     } else {
         statusBar()->showMessage(tr("Exported glTF to %1").arg(QFileInfo(file).fileName()), 3000);
         Logging::info(tr("glTF export complete: %1").arg(QFileInfo(file).fileName()));
+    }
+}
+
+void MainWindow::submitCalculixJob() {
+    runAnalysis();
+    const auto result = m_analysis->lastResult();
+    if (!result.summary.isEmpty()) {
+        statusBar()->showMessage(tr("CalculiX submission: %1").arg(result.summary), 5000);
+    }
+}
+
+void MainWindow::previewCamPath() {
+    if (!m_camDock) return;
+    m_camDock->previewCurrentToolpath();
+    statusBar()->showMessage(tr("CAM preview refreshed"), 2000);
+}
+
+void MainWindow::reloadAiRules() {
+    const QString file = QFileDialog::getOpenFileName(this, tr("Load AI rules"), QString(), tr("JSON (*.json)"));
+    if (file.isEmpty()) return;
+
+    if (m_aiEngine->loadRules(file)) {
+        if (m_aiDock) {
+            AegisAIEngine::Advice info;
+            info.summary = tr("Loaded %1 rules from %2").arg(m_aiEngine->ruleSummaries().size()).arg(QFileInfo(file).fileName());
+            info.recommendations = m_aiEngine->ruleSummaries();
+            m_aiDock->appendAdvice(info);
+        }
+        statusBar()->showMessage(tr("AI rules reloaded"), 2000);
+    } else {
+        QMessageBox::warning(this, tr("AI rules"), tr("No rules parsed from selection."));
     }
 }
 

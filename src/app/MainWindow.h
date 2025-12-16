@@ -33,6 +33,9 @@ private slots:
     void exportGltfFile();
     void saveProject();
     void loadProject();
+    void submitCalculixJob();
+    void previewCamPath();
+    void reloadAiRules();
     void runAnalysis();
     void regenerateFromReverse(const TopoDS_Shape &shape);
     void evaluateAIAssistant(const QString &prompt);
@@ -41,6 +44,7 @@ private:
     void setupUi();
     void setupDocks();
     void setupToolbar();
+    void setupMenus();
     void loadSamplePart();
     std::vector<AegisAIEngine::PartInsight> buildInsights();
 

@@ -26,10 +26,18 @@ public:
         QJsonDocument toJson() const;
     };
 
+    struct Rule {
+        QString trigger;
+        QString recommendation;
+    };
+
     AegisAIEngine();
 
     void setSceneInsights(std::vector<PartInsight> insights);
     void setStressSnapshot(const AnalysisManager::Result &result);
+
+    bool loadRules(const QString &path);
+    QStringList ruleSummaries() const;
 
     Advice evaluate(const QString &prompt) const;
     Advice query(const QString &prompt) const { return evaluate(prompt); }
@@ -42,5 +50,6 @@ private:
 
     std::vector<PartInsight> m_insights;
     AnalysisManager::Result m_lastResult;
+    std::vector<Rule> m_rules;
 };
 

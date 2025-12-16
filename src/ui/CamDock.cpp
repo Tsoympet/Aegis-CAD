@@ -94,6 +94,10 @@ void CamDock::setShapeProvider(const std::function<TopoDS_Shape()> &provider) {
     m_shapeProvider = provider;
 }
 
+void CamDock::previewCurrentToolpath() {
+    generateToolpath();
+}
+
 void CamDock::beginFaceSelection() {
     if (m_view) {
         m_view->enableCamSelection(true, false);

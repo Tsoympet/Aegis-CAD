@@ -1,0 +1,14 @@
+[
+  {
+    "trigger": "overhang",
+    "recommendation": "Check additive builds for unsupported overhangs; add chamfers or lattice to self-support."
+  },
+  {
+    "trigger": "fastener",
+    "recommendation": "Standardize fasteners to reduce inventory; reuse M6 or 1/4-20 where possible."
+  },
+  {
+    "trigger": "thermal",
+    "recommendation": "Thermal loads detected in prompt: ensure a uniform constraint set and add ventilation slots if plastic."
+  }
+]
