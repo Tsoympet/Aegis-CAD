@@ -2,6 +2,15 @@
 
 #include <QString>
 #include <TopoDS_Shape.hxx>
+#include <QStringList>
+#include <memory>
+
+class AssemblyDocument;
+
+struct ProjectSnapshot {
+    TopoDS_Shape shape;
+    QStringList chatHistory;
+};
 #include <memory>
 
 class AssemblyDocument;
@@ -10,6 +19,8 @@ class ProjectIO {
 public:
     ProjectIO();
 
+    bool saveProject(const QString &filePath, const ProjectSnapshot &snapshot);
+    ProjectSnapshot loadProject(const QString &filePath) const;
     bool saveProject(const QString &filePath, const TopoDS_Shape &shape);
     TopoDS_Shape loadProject(const QString &filePath) const;
 

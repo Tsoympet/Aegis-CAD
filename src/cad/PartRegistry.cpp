@@ -32,6 +32,17 @@ void PartRegistry::updatePart(const QString &id, const TopoDS_Shape &shape) {
     addPart(id, shape);
 }
 
+void PartRegistry::setMaterial(const QString &id, const QString &material, double density, double yieldStrength) {
+    for (auto &entry : m_parts) {
+        if (entry.id == id) {
+            entry.material = material;
+            entry.density = density;
+            entry.yieldStrength = yieldStrength;
+            return;
+        }
+    }
+}
+
 TopoDS_Shape PartRegistry::activeShape() const {
     for (const auto &entry : m_parts) {
         if (entry.id == m_activeId) {
@@ -74,6 +85,9 @@ bool PartRegistry::exportToJson(const QString &path) const {
         obj["id"] = entry.id;
         obj["name"] = entry.name;
         obj["visible"] = entry.visible;
+        obj["material"] = entry.material;
+        obj["density"] = entry.density;
+        obj["yieldStrength"] = entry.yieldStrength;
         obj["brep"] = serializeShape(entry.shape);
         array.push_back(obj);
     }
@@ -98,6 +112,9 @@ bool PartRegistry::importFromJson(const QString &path) {
         entry.id = obj["id"].toString();
         entry.name = obj["name"].toString();
         entry.visible = obj["visible"].toBool(true);
+        entry.material = obj.value("material").toString(entry.material);
+        entry.density = obj.value("density").toDouble(entry.density);
+        entry.yieldStrength = obj.value("yieldStrength").toDouble(entry.yieldStrength);
         entry.shape = deserializeShape(obj["brep"].toString());
         m_parts.push_back(entry);
     }

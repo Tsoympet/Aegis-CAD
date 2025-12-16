@@ -40,6 +40,7 @@ AnalysisManager::Result AnalysisManager::runCase() {
     r.maxStress = backendResult.maxStress;
     r.minTemperature = backendResult.minTemperature;
     r.maxTemperature = backendResult.maxTemperature;
+    m_lastResult = r;
     return r;
 }
 

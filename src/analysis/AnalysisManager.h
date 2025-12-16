@@ -29,6 +29,7 @@ public:
 
     Result runCase();
     Result runCubeCompressionExample();
+    Result lastResult() const { return m_lastResult; }
 
 private:
     void visualizeResult(const BackendFEA_CalculiX::Result &backendResult);
@@ -39,5 +40,6 @@ private:
     std::unique_ptr<BackendFEA_CalculiX> m_backend;
     OccView *m_view{nullptr};
     AnalysisLegendOverlay *m_legend{nullptr};
+    Result m_lastResult;
 };
 
