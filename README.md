@@ -62,6 +62,9 @@ ctest --test-dir build --output-on-failure
 ## Running
 The built executable lives in `build/AegisCAD` (or `build/Release/AegisCAD.exe` on Windows). Launch it to load the sample cube, then use the toolbar for STEP/glTF operations, run the analysis stub, or drive the AI/Python docks.
 
+## Scripting
+See [docs/scripting.md](docs/scripting.md) for the list of exported Python helpers, sample scripts, and guidance on invoking
+`ScriptRunner` programmatically.
 ### Configuration
 - Settings are persisted via `QSettings` under the `AegisCAD` organization key. Editing or deleting the platform-specific settings file resets the UI layout.
 - The CAM/analysis docks default to stub modes; switch the backend to a real solver by updating the analysis settings page.

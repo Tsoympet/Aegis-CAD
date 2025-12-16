@@ -36,12 +36,11 @@ set(AEGISCAD_RESOURCES
     resources/aegiscad.qrc
 )
 
-add_executable(AegisCAD
+add_library(AegisCADLib
     ${AEGISCAD_SOURCES}
-    ${AEGISCAD_RESOURCES}
 )
 
-target_include_directories(AegisCAD PRIVATE
+target_include_directories(AegisCADLib PRIVATE
     src/app
     src/ui
     src/cad
@@ -57,7 +56,7 @@ target_include_directories(AegisCAD PRIVATE
     ${Tesseract_INCLUDE_DIRS}
 )
 
-target_link_libraries(AegisCAD PRIVATE
+target_link_libraries(AegisCADLib PRIVATE
     Qt6::Widgets
     ${OpenCASCADE_LIBRARIES}
     pybind11::embed
@@ -66,19 +65,25 @@ target_link_libraries(AegisCAD PRIVATE
 )
 
 if (OpenCV_FOUND)
-    target_compile_definitions(AegisCAD PRIVATE HAVE_OPENCV)
+    target_compile_definitions(AegisCADLib PRIVATE HAVE_OPENCV)
 endif()
 
 if (Tesseract_FOUND)
-    target_compile_definitions(AegisCAD PRIVATE HAVE_TESSERACT)
+    target_compile_definitions(AegisCADLib PRIVATE HAVE_TESSERACT)
 endif()
 
-target_compile_definitions(AegisCAD PRIVATE QT_NO_KEYWORDS)
+target_compile_definitions(AegisCADLib PRIVATE QT_NO_KEYWORDS)
 
-target_compile_options(AegisCAD PRIVATE
+target_compile_options(AegisCADLib PRIVATE
     $<$<CXX_COMPILER_ID:MSVC>:/W4 /permissive->
     $<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wall -Wextra -Wpedantic>
 )
+
+add_executable(AegisCAD
+    ${AEGISCAD_RESOURCES}
+)
+
+target_link_libraries(AegisCAD PRIVATE AegisCADLib)
 
 install(TARGETS AegisCAD
     RUNTIME DESTINATION bin

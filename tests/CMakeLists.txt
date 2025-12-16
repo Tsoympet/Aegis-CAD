@@ -9,6 +9,7 @@ add_executable(core_tests
 target_link_libraries(core_tests PRIVATE
     Qt6::Test
     Qt6::Widgets
+    AegisCADLib
     ${OpenCASCADE_LIBRARIES}
 )
 
