@@ -2,8 +2,11 @@
 
 #include <QWidget>
 #include <AIS_InteractiveContext.hxx>
+#include <Graphic3d_ClipPlane.hxx>
+#include <Quantity_Color.hxx>
 #include <V3d_View.hxx>
 #include <memory>
+#include <unordered_map>
 
 class OccView : public QWidget {
     Q_OBJECT
@@ -12,6 +15,11 @@ public:
     ~OccView() override;
 
     void displayShape(const TopoDS_Shape &shape);
+    void displayPart(const QString &id, const TopoDS_Shape &shape, const Quantity_Color &color = Quantity_Color(0.8, 0.8, 0.8, Quantity_TOC_RGB));
+    void setPartVisible(const QString &id, bool visible);
+    void setFeatureColor(const QString &id, const Quantity_Color &color);
+    void enableSectionPlane(const gp_Pln &plane);
+    void disableSectionPlane();
 
 protected:
     QPaintEngine *paintEngine() const override { return nullptr; }
@@ -24,12 +32,15 @@ protected:
 
 private:
     void initializeViewer();
+    void updateClipPlanes();
 
     Handle(V3d_Viewer) m_viewer;
     Handle(AIS_InteractiveContext) m_context;
     Handle(V3d_View) m_view;
+    Handle(Graphic3d_ClipPlane) m_clipPlane;
     bool m_initialized{false};
     Qt::MouseButton m_lastButton{Qt::NoButton};
     QPoint m_lastPos;
+    std::unordered_map<QString, Handle(AIS_Shape)> m_parts;
 };
 
