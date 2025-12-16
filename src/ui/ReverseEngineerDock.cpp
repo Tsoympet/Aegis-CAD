@@ -111,6 +111,15 @@ void ReverseEngineerDock::chooseBlueprint() {
     }
 }
 
+}
+
+void ReverseEngineerDock::chooseBlueprint() {
+    const QString path = QFileDialog::getOpenFileName(this, tr("Select blueprint"), QString(), tr("Images (*.png *.jpg *.jpeg *.bmp)"));
+    if (!path.isEmpty()) {
+        m_blueprintPath->setText(path);
+    }
+}
+
 TopoDS_Shape ReverseEngineerDock::generatePlaceholder() const {
     if (!m_blueprintPath->text().isEmpty()) {
         TopoDS_Shape fromBlueprint = generateFromBlueprint();

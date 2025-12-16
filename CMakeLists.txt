@@ -21,6 +21,7 @@ file(GLOB_RECURSE AEGISCAD_SOURCES
     src/app/*.cpp
     src/ui/*.cpp
     src/cad/*.cpp
+    src/cam/*.cpp
     src/assembly/*.cpp
     src/analysis/*.cpp
     src/ai/*.cpp
@@ -41,6 +42,7 @@ target_include_directories(AegisCAD PRIVATE
     src/app
     src/ui
     src/cad
+    src/cam
     src/assembly
     src/analysis
     src/ai

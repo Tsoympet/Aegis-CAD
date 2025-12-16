@@ -10,6 +10,7 @@ class OccView;
 class AnalysisLegendOverlay;
 class AegisAssistantDock;
 class ReverseEngineerDock;
+class CamDock;
 class PythonConsoleDock;
 class AnalysisManager;
 class AegisAIEngine;
@@ -45,6 +46,7 @@ private:
     AnalysisLegendOverlay *m_legend{nullptr};
     AegisAssistantDock *m_aiDock{nullptr};
     ReverseEngineerDock *m_reverseDock{nullptr};
+    CamDock *m_camDock{nullptr};
     PythonConsoleDock *m_pythonDock{nullptr};
 
     std::unique_ptr<AnalysisManager> m_analysis;

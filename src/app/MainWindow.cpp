@@ -4,6 +4,7 @@
 #include "../ui/AnalysisLegendOverlay.h"
 #include "../ui/AegisAssistantDock.h"
 #include "../ui/ReverseEngineerDock.h"
+#include "../ui/CamDock.h"
 #include "../ui/PythonConsoleDock.h"
 #include "../cad/StepIgesIO.h"
 #include "../cad/GltfExporter.h"
@@ -63,6 +64,11 @@ void MainWindow::setupDocks() {
     m_reverseDock = new ReverseEngineerDock(tr("Reverse Engineer"), this);
     addDockWidget(Qt::LeftDockWidgetArea, m_reverseDock);
     connect(m_reverseDock, &ReverseEngineerDock::modelGenerated, this, &MainWindow::regenerateFromReverse);
+
+    m_camDock = new CamDock(tr("CAM"), this);
+    m_camDock->setView(m_view);
+    m_camDock->setShapeProvider([this]() { return m_partRegistry->activeShape(); });
+    addDockWidget(Qt::RightDockWidgetArea, m_camDock);
 
     m_pythonDock = new PythonConsoleDock(tr("Python Console"), this);
     addDockWidget(Qt::BottomDockWidgetArea, m_pythonDock);

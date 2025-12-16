@@ -2,6 +2,12 @@
 
 #include <QWidget>
 #include <AIS_InteractiveContext.hxx>
+#include <AIS_PolyLine.hxx>
+#include <Graphic3d_ClipPlane.hxx>
+#include <Quantity_Color.hxx>
+#include <TopoDS_Shape.hxx>
+#include <TopoDS_Face.hxx>
+#include <TopoDS_Edge.hxx>
 #include <Graphic3d_ClipPlane.hxx>
 #include <Quantity_Color.hxx>
 #include <TopoDS_Shape.hxx>
@@ -30,10 +36,17 @@ public:
     void setFeatureColor(const QString &id, const Quantity_Color &color);
     void enableSectionPlane(const gp_Pln &plane);
     void disableSectionPlane();
+    void enableCamSelection(bool faces, bool edges);
+    void previewToolpath(const std::vector<gp_Pnt> &points, const Quantity_Color &color = Quantity_Color(0.0, 0.8, 0.1, Quantity_TOC_RGB));
+    void clearToolpathPreview();
 
     void attachLegend(AnalysisLegendOverlay *legend);
     void applyFieldSamples(const QString &id, const std::vector<std::pair<gp_Pnt, double>> &samples, double minVal, double maxVal);
     void clearAnalysisColoring();
+
+signals:
+    void camFacesPicked(const std::vector<TopoDS_Face> &faces);
+    void camEdgesPicked(const std::vector<TopoDS_Edge> &edges);
 
 protected:
     QPaintEngine *paintEngine() const override { return nullptr; }
@@ -58,6 +71,9 @@ private:
     QPoint m_lastPos;
     std::unordered_map<QString, Handle(AIS_InteractiveObject)> m_parts;
     AnalysisLegendOverlay *m_legend{nullptr};
+    bool m_camSelectFaces{false};
+    bool m_camSelectEdges{false};
+    std::vector<Handle(AIS_PolyLine)> m_toolpaths;
     std::unordered_map<QString, Handle(AIS_Shape)> m_parts;
 };
 

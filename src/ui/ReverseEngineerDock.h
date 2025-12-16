@@ -49,6 +49,16 @@ private:
     QCheckBox *m_previewToggle{nullptr};
     mutable TopoDS_Shape m_lastShape;
     mutable std::vector<std::vector<QPointF>> m_lastContours;
+    QPlainTextEdit *m_prompt{nullptr};
+    QPushButton *m_generate{nullptr};
+    QPushButton *m_exportPart{nullptr};
+    QPushButton *m_exportStep{nullptr};
+    QLineEdit *m_blueprintPath{nullptr};
+    QPushButton *m_selectBlueprint{nullptr};
+    QProgressBar *m_progress{nullptr};
+    QCheckBox *m_previewToggle{nullptr};
+    mutable TopoDS_Shape m_lastShape;
+    mutable std::vector<std::vector<QPointF>> m_lastContours;
 
     QPlainTextEdit *m_prompt{nullptr};
     QPushButton *m_generate{nullptr};

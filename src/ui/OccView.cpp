@@ -4,10 +4,14 @@
 
 #include <AIS_ColoredShape.hxx>
 #include <AIS_Shape.hxx>
+#include <AIS_PolyLine.hxx>
 #include <Aspect_DisplayConnection.hxx>
 #include <BRepGProp.hxx>
 #include <GProp_GProps.hxx>
 #include <Graphic3d_ClipPlane.hxx>
+#include <Graphic3d_GraphicDriver.hxx>
+#include <OpenGl_GraphicDriver.hxx>
+#include <Precision.hxx>
 #include <Graphic3d_GraphicDriver.hxx>
 #include <OpenGl_GraphicDriver.hxx>
 #include <Precision.hxx>
@@ -34,6 +38,7 @@
 
 #include <Bnd_Box.hxx>
 #include <BRepBndLib.hxx>
+#include <TColgp_Array1OfPnt.hxx>
 
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -149,6 +154,42 @@ void OccView::disableSectionPlane() {
     m_view->Redraw();
 }
 
+void OccView::enableCamSelection(bool faces, bool edges) {
+    m_camSelectFaces = faces;
+    m_camSelectEdges = edges;
+    if (!m_initialized) return;
+    m_context->Deactivate();
+    if (faces) {
+        m_context->ActivateStandardMode(TopAbs_FACE);
+    }
+    if (edges) {
+        m_context->ActivateStandardMode(TopAbs_EDGE);
+    }
+}
+
+void OccView::previewToolpath(const std::vector<gp_Pnt> &points, const Quantity_Color &color) {
+    if (!m_initialized || points.size() < 2) return;
+    clearToolpathPreview();
+    TColgp_Array1OfPnt arr(1, static_cast<int>(points.size()));
+    for (int i = 0; i < static_cast<int>(points.size()); ++i) {
+        arr.SetValue(i + 1, points[static_cast<size_t>(i)]);
+    }
+    Handle(AIS_PolyLine) poly = new AIS_PolyLine(arr);
+    poly->SetColor(color);
+    m_toolpaths.push_back(poly);
+    m_context->Display(poly, Standard_True);
+    m_view->FitAll();
+    update();
+}
+
+void OccView::clearToolpathPreview() {
+    if (!m_initialized) return;
+    for (auto &pl : m_toolpaths) {
+        m_context->Remove(pl, false);
+    }
+    m_toolpaths.clear();
+}
+
 void OccView::attachLegend(AnalysisLegendOverlay *legend) {
     m_legend = legend;
 }
@@ -237,7 +278,23 @@ void OccView::mousePressEvent(QMouseEvent *event) {
 }
 
 void OccView::mouseReleaseEvent(QMouseEvent *event) {
-    Q_UNUSED(event);
+    if (m_initialized && (m_camSelectFaces || m_camSelectEdges) && event->button() == Qt::LeftButton) {
+        m_context->MoveTo(event->pos().x(), event->pos().y(), m_view, true);
+        m_context->Select(true);
+        std::vector<TopoDS_Face> faces;
+        std::vector<TopoDS_Edge> edges;
+        for (m_context->InitSelected(); m_context->MoreSelected(); m_context->NextSelected()) {
+            const TopoDS_Shape sel = m_context->SelectedShape();
+            if (m_camSelectFaces && sel.ShapeType() == TopAbs_FACE) {
+                faces.push_back(TopoDS::Face(sel));
+            }
+            if (m_camSelectEdges && sel.ShapeType() == TopAbs_EDGE) {
+                edges.push_back(TopoDS::Edge(sel));
+            }
+        }
+        if (!faces.empty()) emit camFacesPicked(faces);
+        if (!edges.empty()) emit camEdgesPicked(edges);
+    }
     m_lastButton = Qt::NoButton;
 }
 
