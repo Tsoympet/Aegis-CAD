@@ -9,11 +9,15 @@
 #include "../cad/GltfExporter.h"
 #include "../cad/PartRegistry.h"
 #include "../analysis/AnalysisManager.h"
+#include "../analysis/DomainTemplates.h"
 #include "../ai/AegisAIEngine.h"
 #include "../utils/Logging.h"
 
+#include <BRepGProp.hxx>
+#include <GProp_GProps.hxx>
 #include <QToolBar>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QMessageBox>
 #include <QStatusBar>
 #include <QDockWidget>
@@ -58,7 +62,7 @@ void MainWindow::setupDocks() {
 
     m_reverseDock = new ReverseEngineerDock(tr("Reverse Engineer"), this);
     addDockWidget(Qt::LeftDockWidgetArea, m_reverseDock);
-    connect(m_reverseDock, &ReverseEngineerDock::generateShapeRequested, this, &MainWindow::regenerateFromReverse);
+    connect(m_reverseDock, &ReverseEngineerDock::modelGenerated, this, &MainWindow::regenerateFromReverse);
 
     m_pythonDock = new PythonConsoleDock(tr("Python Console"), this);
     addDockWidget(Qt::BottomDockWidgetArea, m_pythonDock);
@@ -73,6 +77,9 @@ void MainWindow::setupToolbar() {
 
     QAction *importStep = toolbar->addAction(QIcon(":/icons/toolbar_import.svg"), tr("Import STEP"), this, &MainWindow::openStepFile);
     importStep->setShortcut(QKeySequence::Open);
+
+    toolbar->addAction(QIcon(":/icons/toolbar_import.svg"), tr("Open Project"), this, &MainWindow::loadProject);
+    toolbar->addAction(QIcon(":/icons/toolbar_export.svg"), tr("Save Project"), this, &MainWindow::saveProject);
 
     QAction *exportStep = toolbar->addAction(QIcon(":/icons/toolbar_export.svg"), tr("Export STEP"), this, &MainWindow::exportStepFile);
     QAction *exportGltf = toolbar->addAction(QIcon(":/icons/toolbar_analysis.svg"), tr("Export glTF"), this, &MainWindow::exportGltfFile);
@@ -143,26 +150,36 @@ void MainWindow::runAnalysis() {
     }
 
     m_analysis->setModel(shape);
-    auto result = m_analysis->runQuickCheck();
-    m_legend->setResultText(result.summary);
-    m_legend->show();
+    DomainTemplates templates;
+    m_analysis->setAnalysisCase(templates.defaultCase(DomainTemplateKind::Car, shape));
+    auto result = m_analysis->runCase();
+    if (m_legend) {
+        m_legend->setResultText(result.summary);
+        m_legend->show();
+    }
     statusBar()->showMessage(tr("Analysis complete"), 3000);
 }
 
-void MainWindow::regenerateFromReverse(const QString &prompt) {
-    auto shape = m_partRegistry->synthesizeFromPrompt(prompt);
+void MainWindow::regenerateFromReverse(const TopoDS_Shape &shape) {
     if (shape.IsNull()) {
         QMessageBox::warning(this, tr("Reverse engineer"), tr("Could not synthesize geometry from the prompt."));
         return;
     }
+    const QString id = m_partRegistry->addPart(tr("ReverseModel"), shape);
+    m_partRegistry->setMaterial(id, QStringLiteral("Aluminum 6061"));
     m_view->displayShape(shape);
     statusBar()->showMessage(tr("Generated geometry from prompt"), 2000);
 }
 
 void MainWindow::evaluateAIAssistant(const QString &prompt) {
-    const QString guidance = m_aiEngine->evaluate(prompt);
     if (m_aiDock) {
-        m_aiDock->appendResponse(guidance);
+        m_aiDock->appendUserPrompt(prompt);
+    }
+    m_aiEngine->setSceneInsights(buildInsights());
+    m_aiEngine->setStressSnapshot(m_analysis->lastResult());
+    auto advice = m_aiEngine->evaluate(prompt);
+    if (m_aiDock) {
+        m_aiDock->appendAdvice(advice);
     }
     statusBar()->showMessage(tr("AI assistant responded"), 2000);
 }
@@ -175,5 +192,58 @@ void MainWindow::loadSamplePart() {
         m_view->displayShape(shape);
         statusBar()->showMessage(tr("Loaded sample model"), 2000);
     }
+}
+
+void MainWindow::saveProject() {
+    const QString file = QFileDialog::getSaveFileName(this, tr("Save Project"), QString(), tr("Aegis Project (*.aegisproj)"));
+    if (file.isEmpty()) return;
+
+    ProjectSnapshot snapshot;
+    snapshot.shape = m_partRegistry->activeShape();
+    if (m_aiDock) {
+        snapshot.chatHistory = m_aiDock->history();
+    }
+
+    if (!m_projectIO->saveProject(file, snapshot)) {
+        QMessageBox::warning(this, tr("Save failed"), tr("Project could not be written."));
+    } else {
+        statusBar()->showMessage(tr("Saved project"), 2000);
+    }
+}
+
+void MainWindow::loadProject() {
+    const QString file = QFileDialog::getOpenFileName(this, tr("Open Project"), QString(), tr("Aegis Project (*.aegisproj)"));
+    if (file.isEmpty()) return;
+
+    auto snapshot = m_projectIO->loadProject(file);
+    if (!snapshot.shape.IsNull()) {
+        m_partRegistry->addPart(QFileInfo(file).fileName(), snapshot.shape);
+        m_view->displayShape(snapshot.shape);
+    }
+    if (m_aiDock && !snapshot.chatHistory.isEmpty()) {
+        m_aiDock->setHistory(snapshot.chatHistory);
+    }
+    statusBar()->showMessage(tr("Project loaded"), 2000);
+}
+
+std::vector<AegisAIEngine::PartInsight> MainWindow::buildInsights() {
+    std::vector<AegisAIEngine::PartInsight> insights;
+    const auto parts = m_partRegistry->parts();
+    for (const auto &entry : parts) {
+        if (entry.shape.IsNull()) continue;
+        AegisAIEngine::PartInsight insight;
+        insight.id = entry.id;
+        insight.name = entry.name;
+        insight.material = entry.material;
+        GProp_GProps props;
+        BRepGProp::Volume(entry.shape, props);
+        insight.volume = props.Mass();
+        insight.mass = insight.volume * entry.density;
+        insight.peakStress = m_analysis->lastResult().maxStress;
+        const double stress = std::max(1.0, insight.peakStress);
+        insight.safetyFactor = entry.yieldStrength / stress;
+        insights.push_back(insight);
+    }
+    return insights;
 }
 

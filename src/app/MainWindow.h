@@ -1,6 +1,9 @@
 #pragma once
 
+#include "../ai/AegisAIEngine.h"
+
 #include <QMainWindow>
+#include <TopoDS_Shape.hxx>
 #include <memory>
 
 class OccView;
@@ -25,8 +28,10 @@ private slots:
     void openStepFile();
     void exportStepFile();
     void exportGltfFile();
+    void saveProject();
+    void loadProject();
     void runAnalysis();
-    void regenerateFromReverse(const QString &prompt);
+    void regenerateFromReverse(const TopoDS_Shape &shape);
     void evaluateAIAssistant(const QString &prompt);
 
 private:
@@ -34,6 +39,7 @@ private:
     void setupDocks();
     void setupToolbar();
     void loadSamplePart();
+    std::vector<AegisAIEngine::PartInsight> buildInsights();
 
     OccView *m_view{nullptr};
     AnalysisLegendOverlay *m_legend{nullptr};
