@@ -10,6 +10,7 @@
 #include <gp_Dir.hxx>
 #include <gp_Pnt.hxx>
 #include <QRandomGenerator>
+#include <QtConcurrent>
 
 namespace {
 QString newId() {
@@ -110,6 +111,42 @@ TopoDS_Shape FeatureTree::replay() const {
     return current;
 }
 
+TopoDS_Shape FeatureTree::recomputeFromHistory(const TopoDS_Shape &seed) const {
+    if (m_history.empty()) return seed;
+    auto worker = [this, seed]() {
+        TopoDS_Shape current = seed;
+        for (const auto &node : m_history) {
+            switch (node.type) {
+            case NodeType::Extrude:
+                current = FeatureOps::extrude(current, node.value);
+                break;
+            case NodeType::Revolve:
+                current = FeatureOps::revolve(current, node.axis, node.value);
+                break;
+            case NodeType::Cut:
+                current = FeatureOps::cut(current, node.tool);
+                break;
+            case NodeType::Fillet:
+                current = FeatureOps::fillet(current, node.value);
+                break;
+            case NodeType::Chamfer:
+                current = FeatureOps::chamfer(current, node.value);
+                break;
+            case NodeType::Shell:
+                current = FeatureOps::shell(current, node.value);
+                break;
+            case NodeType::Draft:
+                current = FeatureOps::draft(current, node.draftDir, node.value);
+                break;
+            }
+        }
+        return current;
+    };
+    QFuture<TopoDS_Shape> future = QtConcurrent::run(worker);
+    future.waitForFinished();
+    return future.result();
+}
+
 SketchEngine::SketchEngine()
     : m_sketch(std::make_unique<Sketch2D>()),
       m_tree(std::make_unique<FeatureTree>()) {}
@@ -118,5 +155,11 @@ TopoDS_Shape SketchEngine::rebuild3D() {
     TopoDS_Shape profile = m_sketch->toFace();
     m_tree->setProfile(profile);
     return m_tree->replay();
+}
+
+TopoDS_Shape SketchEngine::recomputeFromHistory() {
+    TopoDS_Shape profile = m_sketch->toFace();
+    m_tree->setProfile(profile);
+    return m_tree->recomputeFromHistory(profile);
 }
 

@@ -5,14 +5,12 @@
 #include <AIS_PolyLine.hxx>
 #include <Graphic3d_ClipPlane.hxx>
 #include <Quantity_Color.hxx>
-#include <TopoDS_Shape.hxx>
-#include <TopoDS_Face.hxx>
 #include <TopoDS_Edge.hxx>
-#include <Graphic3d_ClipPlane.hxx>
-#include <Quantity_Color.hxx>
+#include <TopoDS_Face.hxx>
 #include <TopoDS_Shape.hxx>
 #include <V3d_View.hxx>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
@@ -43,6 +41,17 @@ public:
     void attachLegend(AnalysisLegendOverlay *legend);
     void applyFieldSamples(const QString &id, const std::vector<std::pair<gp_Pnt, double>> &samples, double minVal, double maxVal);
     void clearAnalysisColoring();
+    struct FrameStats {
+        double fps{0.0};
+        double frameTimeMs{0.0};
+        double gpuMemoryMB{0.0};
+        std::size_t cachedTessellations{0};
+        std::size_t activeParts{0};
+    };
+
+    FrameStats stats() const { return m_stats; }
+    void setLoDScaling(double lodDistance, double coarse);  // distance in world units
+    void setTessellationCacheLimit(std::size_t maxEntries);
 
 signals:
     void camFacesPicked(const std::vector<TopoDS_Face> &faces);
@@ -61,6 +70,9 @@ private:
     void initializeViewer();
     void updateClipPlanes();
     Quantity_Color interpolateColor(double t) const;
+    void configureCulling();
+    void updateFrameStats();
+    double viewDistanceTo(const gp_Pnt &point) const;
 
     Handle(V3d_Viewer) m_viewer;
     Handle(AIS_InteractiveContext) m_context;
@@ -70,10 +82,14 @@ private:
     Qt::MouseButton m_lastButton{Qt::NoButton};
     QPoint m_lastPos;
     std::unordered_map<QString, Handle(AIS_InteractiveObject)> m_parts;
+    std::unordered_map<QString, Handle(AIS_Shape)> m_cachedParts;
     AnalysisLegendOverlay *m_legend{nullptr};
     bool m_camSelectFaces{false};
     bool m_camSelectEdges{false};
     std::vector<Handle(AIS_PolyLine)> m_toolpaths;
-    std::unordered_map<QString, Handle(AIS_Shape)> m_parts;
-};
+    FrameStats m_stats;
+    double m_lodDistance{1500.0};
+    double m_lodCoarse{0.8};
+    std::size_t m_cacheLimit{32};
+}; 
 

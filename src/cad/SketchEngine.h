@@ -64,6 +64,7 @@ public:
     void setProfile(const TopoDS_Shape &face);
     void push(const Node &node);
     TopoDS_Shape replay() const;
+    TopoDS_Shape recomputeFromHistory(const TopoDS_Shape &seed) const;
 
 private:
     TopoDS_Shape m_profile;
@@ -78,6 +79,7 @@ public:
     FeatureTree &history() { return *m_tree; }
 
     TopoDS_Shape rebuild3D();
+    TopoDS_Shape recomputeFromHistory();
 
 private:
     std::unique_ptr<Sketch2D> m_sketch;

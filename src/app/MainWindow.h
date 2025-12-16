@@ -9,6 +9,7 @@
 class OccView;
 class AnalysisLegendOverlay;
 class AegisAssistantDock;
+class PerformanceProfilerDock;
 class ReverseEngineerDock;
 class CamDock;
 class PythonConsoleDock;
@@ -45,6 +46,7 @@ private:
     OccView *m_view{nullptr};
     AnalysisLegendOverlay *m_legend{nullptr};
     AegisAssistantDock *m_aiDock{nullptr};
+    PerformanceProfilerDock *m_profilerDock{nullptr};
     ReverseEngineerDock *m_reverseDock{nullptr};
     CamDock *m_camDock{nullptr};
     PythonConsoleDock *m_pythonDock{nullptr};

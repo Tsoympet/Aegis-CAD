@@ -3,6 +3,7 @@
 #include "../ui/OccView.h"
 #include "../ui/AnalysisLegendOverlay.h"
 #include "../ui/AegisAssistantDock.h"
+#include "../ui/PerformanceProfilerDock.h"
 #include "../ui/ReverseEngineerDock.h"
 #include "../ui/CamDock.h"
 #include "../ui/PythonConsoleDock.h"
@@ -69,6 +70,10 @@ void MainWindow::setupDocks() {
     m_camDock->setView(m_view);
     m_camDock->setShapeProvider([this]() { return m_partRegistry->activeShape(); });
     addDockWidget(Qt::RightDockWidgetArea, m_camDock);
+
+    m_profilerDock = new PerformanceProfilerDock(tr("Performance"), this);
+    m_profilerDock->attachView(m_view);
+    addDockWidget(Qt::RightDockWidgetArea, m_profilerDock);
 
     m_pythonDock = new PythonConsoleDock(tr("Python Console"), this);
     addDockWidget(Qt::BottomDockWidgetArea, m_pythonDock);
