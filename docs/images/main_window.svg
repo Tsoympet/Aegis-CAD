@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" style="background:#141a22;font-family:Segoe UI,Arial,sans-serif;">
+  <rect x="40" y="40" width="880" height="480" fill="none" stroke="#00aaff" stroke-width="3" />
+  <text x="480" y="280" fill="#e8f4ff" font-size="24" text-anchor="middle">OCC 3D Viewport</text>
+  <text x="480" y="310" fill="#9fb4c4" font-size="18" text-anchor="middle">Zoom / Pan / Orbit</text>
+  <rect x="940" y="80" width="280" height="170" fill="none" stroke="#00aaff" stroke-width="3" />
+  <text x="1080" y="160" fill="#e8f4ff" font-size="20" text-anchor="middle">AI Assistant Dock</text>
+  <text x="1080" y="190" fill="#9fb4c4" font-size="16" text-anchor="middle">Suggested prompts + actions</text>
+  <rect x="940" y="270" width="280" height="230" fill="none" stroke="#00aaff" stroke-width="3" />
+  <text x="1080" y="370" fill="#e8f4ff" font-size="20" text-anchor="middle">Tool Docks</text>
+  <text x="1080" y="400" fill="#9fb4c4" font-size="16" text-anchor="middle">Analysis / CAM / Settings</text>
+  <rect x="40" y="540" width="1180" height="140" fill="none" stroke="#8090a0" stroke-width="3" />
+  <text x="630" y="620" fill="#c9d8e6" font-size="18" text-anchor="middle">Status bar + log output for file ops, analysis, and scripts</text>
+</svg>
