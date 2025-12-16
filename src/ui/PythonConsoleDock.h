@@ -5,12 +5,22 @@
 #include <QLineEdit>
 #include <memory>
 
+class OccView;
+class AnalysisManager;
+class AegisAIEngine;
+class ProjectIO;
+
 class ScriptRunner;
 
 class PythonConsoleDock : public QDockWidget {
     Q_OBJECT
 public:
-    explicit PythonConsoleDock(const QString &title, QWidget *parent = nullptr);
+    explicit PythonConsoleDock(const QString &title,
+                               OccView *view,
+                               AnalysisManager *analysis,
+                               AegisAIEngine *ai,
+                               ProjectIO *projectIO,
+                               QWidget *parent = nullptr);
 
 public slots:
     void runBuffer();

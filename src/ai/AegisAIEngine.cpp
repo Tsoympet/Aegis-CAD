@@ -53,6 +53,11 @@ AegisAIEngine::Advice AegisAIEngine::evaluate(const QString &prompt) const {
     return advice;
 }
 
+AegisAIEngine::Advice AegisAIEngine::optimize(const QString &objective) const {
+    const QString scopedPrompt = QObject::tr("Optimize for %1").arg(objective);
+    return evaluate(scopedPrompt);
+}
+
 QString AegisAIEngine::materialGuidance(const PartInsight &part) const {
     if (part.material.contains(QStringLiteral("steel"), Qt::CaseInsensitive)) {
         if (part.mass > 500.0) {
