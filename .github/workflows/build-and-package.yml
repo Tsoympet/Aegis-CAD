@@ -1,25 +1,96 @@
-name: Build and Package
+name: CI/CD
 
 on:
   push:
   pull_request:
+  workflow_dispatch:
+
+env:
+  BUILD_TYPE: Release
+  CMAKE_BUILD_DIR: build
+  INSTALL_DIR: install
+  APP_VERSION: "1.0"
 
 jobs:
-  build:
+  linux-build-test:
+    name: Linux (GCC) build & test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Qt and dependencies
-        run: sudo apt-get update && sudo apt-get install -y qtbase5-dev libocct-data-exchange-dev libocct-ocaf-dev libocct-visualization-dev libglu1-mesa-dev
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qtbase5-dev libocct-data-exchange-dev libocct-ocaf-dev libocct-visualization-dev libglu1-mesa-dev pybind11-dev
+
       - name: Configure
-        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+        run: cmake -B ${{ env.CMAKE_BUILD_DIR }} -S . -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
       - name: Build
-        run: cmake --build build --config Release
-      - name: Package artifacts
-        if: success()
-        run: cmake --install build --prefix out
-      - name: Upload artifact
+        run: cmake --build ${{ env.CMAKE_BUILD_DIR }} --config ${{ env.BUILD_TYPE }}
+
+      - name: Run unit tests
+        run: ctest --test-dir ${{ env.CMAKE_BUILD_DIR }} --output-on-failure
+
+      - name: Install bundle
+        run: cmake --install ${{ env.CMAKE_BUILD_DIR }} --prefix ${{ env.INSTALL_DIR }}
+
+      - name: Archive install
+        run: |
+          tar -czf aegiscad-linux-${{ env.APP_VERSION }}.tar.gz -C ${{ env.INSTALL_DIR }} .
+        shell: bash
+
+      - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
-          name: aegiscad-binaries
-          path: out
+          name: aegiscad-linux-${{ env.APP_VERSION }}
+          path: aegiscad-linux-${{ env.APP_VERSION }}.tar.gz
+
+  windows-build-test:
+    name: Windows (MSVC) build, test & installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MSVC
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Restore vcpkg dependencies
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgJson: "${{ github.workspace }}\\vcpkg.json"
+
+      - name: Configure
+        run: |
+          cmake -B $env:CMAKE_BUILD_DIR -S . -A x64 -DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT\\scripts\\buildsystems\\vcpkg.cmake -DCMAKE_BUILD_TYPE=$env:BUILD_TYPE
+
+      - name: Build
+        run: cmake --build $env:CMAKE_BUILD_DIR --config $env:BUILD_TYPE
+
+      - name: Run unit tests
+        run: ctest --test-dir $env:CMAKE_BUILD_DIR --output-on-failure --build-config $env:BUILD_TYPE
+
+      - name: Install bundle
+        run: cmake --install $env:CMAKE_BUILD_DIR --config $env:BUILD_TYPE --prefix $env:INSTALL_DIR
+
+      - name: Create ZIP package
+        run: |
+          Compress-Archive -Path "$env:INSTALL_DIR/*" -DestinationPath "aegiscad-windows-$env:APP_VERSION.zip"
+
+      - name: Prepare installer output directory
+        run: New-Item -ItemType Directory -Path "$env:GITHUB_WORKSPACE\\installer\\artifacts" -Force
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress
+
+      - name: Build installer
+        run: |
+          & "C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe" installer\\aegiscad.iss /DSourceDir="$env:INSTALL_DIR" /DOutputDir="$env:GITHUB_WORKSPACE\\installer\\artifacts" /DAppVersion="$env:APP_VERSION"
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: aegiscad-windows-${{ env.APP_VERSION }}
+          path: |
+            aegiscad-windows-${{ env.APP_VERSION }}.zip
+            installer/artifacts/*.exe
