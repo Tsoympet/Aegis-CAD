@@ -132,10 +132,16 @@ void OccView::displayPart(const QString &id, const TopoDS_Shape &shape, const Qu
     BRepBndLib::Add(shape, bbox);
     const gp_Pnt center = bbox.Center();
     const double dist = viewDistanceTo(center);
+    Standard_Real xmin, ymin, zmin, xmax, ymax, zmax;
+    bbox.Get(xmin, ymin, zmin, xmax, ymax, zmax);
+    const double diag = gp_Pnt(xmin, ymin, zmin).Distance(gp_Pnt(xmax, ymax, zmax));
     const double lodFactor = dist > m_lodDistance ? m_lodCoarse : 0.1;
+    const double densityPenalty = m_parts.size() > 200 ? 0.35 : (m_parts.size() > 100 ? 0.2 : 0.0);
+    const double scalePenalty = diag > 5000.0 ? 0.25 : 0.0;
+    const double deflection = std::clamp(lodFactor + densityPenalty + scalePenalty, 0.1, 2.5);
     Handle(AIS_Shape) lodShape = Handle(AIS_Shape)::DownCast(displayed);
     if (!lodShape.IsNull()) {
-        lodShape->Attributes()->SetDeviationCoefficient(lodFactor);
+        lodShape->Attributes()->SetDeviationCoefficient(deflection);
     }
 
     m_context->Display(displayed, Standard_True);
@@ -325,7 +331,8 @@ void OccView::configureCulling() {
     params.IsFrustumCullingEnabled = Standard_True;
 #endif
     params.IsZLayeredCullingEnabled = Standard_True;
-    params.CullingDistance = m_lodDistance * 3.0;
+    const double densityFactor = 1.0 + static_cast<double>(m_stats.activeParts) / 250.0;
+    params.CullingDistance = std::max(m_lodDistance * 2.0, m_lodDistance * densityFactor);
 
     // Enable fast GPU memory reuse for repeated objects.
     m_context->SetAutoActivateSelection(false);
@@ -344,9 +351,29 @@ void OccView::updateFrameStats(double frameMs) {
     }
     if (!m_driver.IsNull()) {
         m_stats.gpuMemoryMB = m_driver->InquireTextureMemory() / 1024.0 / 1024.0;
+    ++frames;
+    const qint64 elapsed = timer.elapsed();
+    if (elapsed > 0) {
+        const double averageFrame = elapsed / static_cast<double>(frames);
+        if (m_smoothedFrameMs <= 0.0) {
+            m_smoothedFrameMs = averageFrame;
+        } else {
+            m_smoothedFrameMs = 0.85 * m_smoothedFrameMs + 0.15 * averageFrame;
+        }
+        m_stats.frameTimeMs = m_smoothedFrameMs;
+        m_stats.fps = m_stats.frameTimeMs > 0.0 ? 1000.0 / m_stats.frameTimeMs : 0.0;
     }
     m_stats.cachedTessellations = m_cachedParts.size();
     m_stats.activeParts = m_parts.size();
+
+    // Adaptive detail reduction for heavy scenes or slow redraws.
+    if ((m_stats.frameTimeMs > 25.0 || m_stats.activeParts > 200) && m_lodCoarse < 2.0) {
+        m_lodCoarse = std::min(2.0, m_lodCoarse + 0.1);
+        m_lodDistance = std::max(800.0, m_lodDistance - 50.0);
+        configureCulling();
+    } else if (m_stats.frameTimeMs < 12.0 && m_lodCoarse > 0.6) {
+        m_lodCoarse = std::max(0.6, m_lodCoarse - 0.05);
+    }
 }
 
 double OccView::viewDistanceTo(const gp_Pnt &point) const {

@@ -102,5 +102,6 @@ private:
     double m_lodDistance{1500.0};
     double m_lodCoarse{0.8};
     std::size_t m_cacheLimit{32};
+    double m_smoothedFrameMs{0.0};
 };
 
