@@ -12,6 +12,7 @@
 #include <TopExp_Explorer.hxx>
 #include <TopoDS_Compound.hxx>
 #include <BRep_Builder.hxx>
+#include "../utils/Logging.h"
 
 StepIgesIO::StepIgesIO() = default;
 
@@ -43,6 +44,7 @@ TopoDS_Shape StepIgesIO::importFile(const QString &path) const {
         reader.SetNameMode(true);
         reader.SetMaterialMode(true);
         if (reader.ReadFile(path.toStdString().c_str()) != IFSelect_RetDone) {
+            Logging::warn(QStringLiteral("Failed to read STEP file: %1").arg(path));
             return TopoDS_Shape();
         }
         reader.Transfer(doc);
@@ -52,17 +54,22 @@ TopoDS_Shape StepIgesIO::importFile(const QString &path) const {
     if (lower.endsWith(".igs") || lower.endsWith(".iges")) {
         IGESControl_Reader reader;
         if (reader.ReadFile(path.toStdString().c_str()) != IFSelect_RetDone) {
+            Logging::warn(QStringLiteral("Failed to read IGES file: %1").arg(path));
             return TopoDS_Shape();
         }
         reader.TransferRoots();
         return reader.OneShape();
     }
 
+    Logging::warn(QStringLiteral("Unsupported CAD format: %1").arg(path));
     return TopoDS_Shape();
 }
 
 bool StepIgesIO::exportStep(const QString &path, const TopoDS_Shape &shape) const {
-    if (shape.IsNull()) return false;
+    if (shape.IsNull()) {
+        Logging::warn(QStringLiteral("Cannot export STEP: no geometry for %1").arg(path));
+        return false;
+    }
     Handle(XCAFApp_Application) app = XCAFApp_Application::GetApplication();
     Handle(TDocStd_Document) doc;
     app->NewDocument("MDTV-CAF", doc);
@@ -75,14 +82,28 @@ bool StepIgesIO::exportStep(const QString &path, const TopoDS_Shape &shape) cons
     writer.SetNameMode(true);
     writer.SetMaterialMode(true);
     IFSelect_ReturnStatus status = writer.Transfer(doc, STEPControl_AsIs);
-    if (status != IFSelect_RetDone) return false;
-    return writer.Write(path.toStdString().c_str()) == IFSelect_RetDone;
+    if (status != IFSelect_RetDone) {
+        Logging::warn(QStringLiteral("Failed to transfer STEP document for %1").arg(path));
+        return false;
+    }
+    const bool ok = writer.Write(path.toStdString().c_str()) == IFSelect_RetDone;
+    if (!ok) {
+        Logging::warn(QStringLiteral("Failed to write STEP file: %1").arg(path));
+    }
+    return ok;
 }
 
 bool StepIgesIO::exportIges(const QString &path, const TopoDS_Shape &shape) const {
-    if (shape.IsNull()) return false;
+    if (shape.IsNull()) {
+        Logging::warn(QStringLiteral("Cannot export IGES: no geometry for %1").arg(path));
+        return false;
+    }
     IGESControl_Writer writer;
     writer.AddShape(shape);
-    return writer.Write(path.toStdString().c_str()) == IFSelect_RetDone;
+    const bool ok = writer.Write(path.toStdString().c_str()) == IFSelect_RetDone;
+    if (!ok) {
+        Logging::warn(QStringLiteral("Failed to write IGES file: %1").arg(path));
+    }
+    return ok;
 }
 

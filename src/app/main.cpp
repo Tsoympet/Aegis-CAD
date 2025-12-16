@@ -1,5 +1,6 @@
 #include "AegisApp.h"
 #include "MainWindow.h"
+#include "../utils/Logging.h"
 #include <QSurfaceFormat>
 
 int main(int argc, char *argv[]) {
@@ -10,6 +11,7 @@ int main(int argc, char *argv[]) {
     QSurfaceFormat::setDefaultFormat(fmt);
 
     AegisApp app(argc, argv);
+    Logging::init();
     MainWindow window;
     window.show();
     return app.exec();

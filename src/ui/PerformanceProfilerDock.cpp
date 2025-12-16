@@ -13,12 +13,16 @@ void PerformanceProfilerDock::buildUi() {
     auto *layout = new QFormLayout(container);
     m_fpsLabel = new QLabel(tr("0 fps"), container);
     m_frameTimeLabel = new QLabel(tr("0 ms"), container);
+    m_averageFrameLabel = new QLabel(tr("0 ms"), container);
+    m_peakFrameLabel = new QLabel(tr("0 ms"), container);
     m_memoryLabel = new QLabel(tr("GPU 0 MB"), container);
     m_cacheLabel = new QLabel(tr("Cache 0"), container);
     m_partsLabel = new QLabel(tr("Parts 0"), container);
 
     layout->addRow(tr("FPS"), m_fpsLabel);
     layout->addRow(tr("Frame time"), m_frameTimeLabel);
+    layout->addRow(tr("Average frame"), m_averageFrameLabel);
+    layout->addRow(tr("Peak frame"), m_peakFrameLabel);
     layout->addRow(tr("GPU"), m_memoryLabel);
     layout->addRow(tr("Tessellation cache"), m_cacheLabel);
     layout->addRow(tr("Active parts"), m_partsLabel);
@@ -43,6 +47,8 @@ void PerformanceProfilerDock::refreshStats() {
     const auto s = m_view->stats();
     m_fpsLabel->setText(QString::number(s.fps, 'f', 1));
     m_frameTimeLabel->setText(QString::number(s.frameTimeMs, 'f', 2) + tr(" ms"));
+    m_averageFrameLabel->setText(QString::number(s.averageFrameTimeMs, 'f', 2) + tr(" ms"));
+    m_peakFrameLabel->setText(QString::number(s.peakFrameTimeMs, 'f', 2) + tr(" ms"));
     m_memoryLabel->setText(QStringLiteral("GPU %1 MB").arg(QString::number(s.gpuMemoryMB, 'f', 1)));
     m_cacheLabel->setText(QStringLiteral("%1 cached").arg(s.cachedTessellations));
     m_partsLabel->setText(QStringLiteral("%1 parts").arg(s.activeParts));
