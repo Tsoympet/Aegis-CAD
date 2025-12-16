@@ -5,6 +5,7 @@
 
 #include <AIS_InteractiveContext.hxx>
 #include <AIS_Line.hxx>
+#include <AIS_Shape.hxx>
 #include <Graphic3d_ClipPlane.hxx>
 #include <V3d_View.hxx>
 #include <QToolBar>
@@ -52,6 +53,7 @@ private:
 
     std::shared_ptr<AssemblyDocument> m_document;
     ConstraintSolverAsm m_solver;
+    std::unordered_map<QString, Handle(AIS_Shape)> m_cachedShapes;
 
     std::vector<std::unordered_map<QString, gp_Trsf>> m_motionFrames;
 

@@ -3,8 +3,9 @@
 #include "AnalysisLegendOverlay.h"
 
 #include <AIS_ColoredShape.hxx>
-#include <AIS_Shape.hxx>
+#include <AIS_ConnectedInteractive.hxx>
 #include <AIS_PolyLine.hxx>
+#include <AIS_Shape.hxx>
 #include <Aspect_DisplayConnection.hxx>
 #include <BRepGProp.hxx>
 #include <GProp_GProps.hxx>
@@ -40,9 +41,11 @@
 #include <BRepBndLib.hxx>
 #include <TColgp_Array1OfPnt.hxx>
 
+#include <QElapsedTimer>
 #include <QMouseEvent>
-#include <QWheelEvent>
 #include <QResizeEvent>
+#include <QTimer>
+#include <QWheelEvent>
 #include <algorithm>
 
 OccView::OccView(QWidget *parent) : QWidget(parent) {
@@ -78,15 +81,20 @@ void OccView::initializeViewer() {
     }
 
     m_context = new AIS_InteractiveContext(m_viewer);
+    configureCulling();
+    m_stats = {};
+    m_stats.gpuMemoryMB = driver->InquireTextureMemory() / 1024.0 / 1024.0;
     m_initialized = true;
 }
 
 void OccView::displayShape(const TopoDS_Shape &shape) {
     if (!m_initialized) return;
     m_parts.clear();
+    m_cachedParts.clear();
     m_context->RemoveAll(false);
     Handle(AIS_Shape) aisShape = new AIS_Shape(shape);
     m_parts.emplace("active", aisShape);
+    m_cachedParts.emplace("active", aisShape);
     m_context->Display(aisShape, Standard_True);
     m_view->FitAll();
     update();
@@ -94,21 +102,44 @@ void OccView::displayShape(const TopoDS_Shape &shape) {
 
 void OccView::displayPart(const QString &id, const TopoDS_Shape &shape, const Quantity_Color &color) {
     if (!m_initialized) return;
-    Handle(AIS_Shape) aisShape = new AIS_Shape(shape);
-    aisShape->SetColor(color);
-    m_parts[id] = aisShape;
-    m_context->Display(aisShape, Standard_True);
-    m_view->FitAll();
-    update();
-}
+    Handle(AIS_Shape) baseShape;
+    const QString cacheKey = QString::number(reinterpret_cast<std::intptr_t>(shape.TShape().get()));
+    auto cached = m_cachedParts.find(cacheKey);
+    if (cached != m_cachedParts.end()) {
+        baseShape = cached->second;
+    } else {
+        baseShape = new AIS_Shape(shape);
+        baseShape->SetColor(color);
+        if (m_cachedParts.size() >= m_cacheLimit) {
+            m_cachedParts.clear();
+        }
+        m_cachedParts.emplace(cacheKey, baseShape);
+    }
 
-void OccView::displayPart(const QString &id, const TopoDS_Shape &shape, const Quantity_Color &color) {
-    if (!m_initialized) return;
-    Handle(AIS_Shape) aisShape = new AIS_Shape(shape);
-    aisShape->SetColor(color);
-    m_parts[id] = aisShape;
-    m_context->Display(aisShape, Standard_True);
+    Handle(AIS_InteractiveObject) displayed;
+    if (cached != m_cachedParts.end()) {
+        Handle(AIS_ConnectedInteractive) inst = new AIS_ConnectedInteractive(baseShape);
+        displayed = inst;
+    } else {
+        displayed = baseShape;
+    }
+
+    m_parts[id] = displayed;
+
+    // Level of detail: relax deflection for far components
+    Bnd_Box bbox;
+    BRepBndLib::Add(shape, bbox);
+    const gp_Pnt center = bbox.Center();
+    const double dist = viewDistanceTo(center);
+    const double lodFactor = dist > m_lodDistance ? m_lodCoarse : 0.1;
+    Handle(AIS_Shape) lodShape = Handle(AIS_Shape)::DownCast(displayed);
+    if (!lodShape.IsNull()) {
+        lodShape->Attributes()->SetDeviationCoefficient(lodFactor);
+    }
+
+    m_context->Display(displayed, Standard_True);
     m_view->FitAll();
+    updateFrameStats();
     update();
 }
 
@@ -194,6 +225,15 @@ void OccView::attachLegend(AnalysisLegendOverlay *legend) {
     m_legend = legend;
 }
 
+void OccView::setLoDScaling(double lodDistance, double coarse) {
+    m_lodDistance = lodDistance;
+    m_lodCoarse = coarse;
+}
+
+void OccView::setTessellationCacheLimit(std::size_t maxEntries) {
+    m_cacheLimit = std::max<std::size_t>(1, maxEntries);
+}
+
 Quantity_Color OccView::interpolateColor(double t) const {
     t = std::clamp(t, 0.0, 1.0);
     // blue (low) -> yellow -> red (high)
@@ -259,9 +299,49 @@ void OccView::updateClipPlanes() {
     m_view->Redraw();
 }
 
+void OccView::configureCulling() {
+    if (m_view.IsNull() || m_context.IsNull()) return;
+    Graphic3d_RenderingParams &params = m_view->ChangeRenderingParams();
+#ifdef GRAPHIC3D_RENDERINGPARAMS_V2
+    params.ToFrustumCulling = Standard_True;
+#else
+    params.IsFrustumCullingEnabled = Standard_True;
+#endif
+    params.IsZLayeredCullingEnabled = Standard_True;
+    params.CullingDistance = m_lodDistance * 3.0;
+
+    // Enable fast GPU memory reuse for repeated objects.
+    m_context->SetAutoActivateSelection(false);
+    m_context->DefaultDrawer()->SetFaceBoundaryDraw(false);
+}
+
+void OccView::updateFrameStats() {
+    static QElapsedTimer timer;
+    static int frames = 0;
+    if (!timer.isValid()) {
+        timer.start();
+    }
+    ++frames;
+    const qint64 elapsed = timer.elapsed();
+    if (elapsed > 0) {
+        m_stats.fps = frames * 1000.0 / elapsed;
+        m_stats.frameTimeMs = elapsed / static_cast<double>(frames);
+    }
+    m_stats.cachedTessellations = m_cachedParts.size();
+    m_stats.activeParts = m_parts.size();
+}
+
+double OccView::viewDistanceTo(const gp_Pnt &point) const {
+    if (m_view.IsNull()) return 0.0;
+    const auto camera = m_view->Camera();
+    const gp_Pnt eye = camera->Eye();
+    return eye.Distance(point);
+}
+
 void OccView::paintEvent(QPaintEvent *) {
     if (m_initialized) {
         m_view->Redraw();
+        updateFrameStats();
     }
 }
 

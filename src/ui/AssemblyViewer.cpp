@@ -1,6 +1,7 @@
 #include "AssemblyViewer.h"
 
 #include <AIS_Shape.hxx>
+#include <AIS_ConnectedInteractive.hxx>
 #include <Aspect_DisplayConnection.hxx>
 #include <OpenGl_GraphicDriver.hxx>
 #include <TopoDS_Shape.hxx>
@@ -19,6 +20,8 @@
 #include <QSizePolicy>
 #include <QVBoxLayout>
 #include <gp_Pnt.hxx>
+#include <BRepBndLib.hxx>
+#include <Bnd_Box.hxx>
 
 AssemblyViewer::AssemblyViewer(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_NoSystemBackground);
@@ -69,6 +72,14 @@ void AssemblyViewer::initializeViewer() {
     }
 
     m_context = new AIS_InteractiveContext(m_viewer);
+    Graphic3d_RenderingParams &params = m_view->ChangeRenderingParams();
+#ifdef GRAPHIC3D_RENDERINGPARAMS_V2
+    params.ToFrustumCulling = Standard_True;
+#else
+    params.IsFrustumCullingEnabled = Standard_True;
+#endif
+    params.CullingDistance = 5000.0;
+    m_context->SetAutoActivateSelection(false);
     m_initialized = true;
 }
 
@@ -80,15 +91,46 @@ void AssemblyViewer::setDocument(const std::shared_ptr<AssemblyDocument> &doc) {
 void AssemblyViewer::displayAssembly() {
     if (!m_initialized || !m_document) return;
     m_context->RemoveAll(false);
+    m_cachedShapes.clear();
     auto frames = m_document->computeWorldFrames();
     for (const auto &pair : m_document->nodes()) {
         const AssemblyNode &node = pair.second;
         if (node.shape.IsNull()) continue;
-        Handle(AIS_Shape) ais = new AIS_Shape(node.shape);
-        if (frames.count(node.id)) {
-            ais->SetLocalTransformation(frames[node.id]);
+        const QString cacheKey = QString::number(reinterpret_cast<std::intptr_t>(node.shape.TShape().get()));
+        Handle(AIS_Shape) base;
+        auto found = m_cachedShapes.find(cacheKey);
+        if (found != m_cachedShapes.end()) {
+            base = found->second;
+        } else {
+            base = new AIS_Shape(node.shape);
+            m_cachedShapes.emplace(cacheKey, base);
         }
-        m_context->Display(ais, Standard_True);
+
+        Handle(AIS_InteractiveObject) toDisplay;
+        if (found != m_cachedShapes.end()) {
+            Handle(AIS_ConnectedInteractive) inst = new AIS_ConnectedInteractive(base);
+            toDisplay = inst;
+        } else {
+            toDisplay = base;
+        }
+
+        if (frames.count(node.id)) {
+            toDisplay->SetLocalTransformation(frames[node.id]);
+        }
+
+        // Distance-based deflection for coarse LOD on far items
+        Bnd_Box bbox;
+        BRepBndLib::Add(node.shape, bbox);
+        const gp_Pnt center = bbox.Center();
+        const gp_Pnt eye = m_view->Camera()->Eye();
+        const double dist = eye.Distance(center);
+        Handle(AIS_Shape) lodShape = Handle(AIS_Shape)::DownCast(toDisplay);
+        if (!lodShape.IsNull()) {
+            const double deflection = dist > 2500.0 ? 0.5 : 0.1;
+            lodShape->Attributes()->SetDeviationCoefficient(deflection);
+        }
+
+        m_context->Display(toDisplay, Standard_False);
     }
     m_view->FitAll();
     update();
