@@ -15,6 +15,10 @@
 #include "cad/GltfExporter.h"
 #include "cad/FeatureOps.h"
 
+#include <cassert>
+#include <filesystem>
+#include <iostream>
+#include <variant>
 class CoreTests : public QObject {
     Q_OBJECT
 
@@ -37,26 +41,34 @@ private slots:
     void runFile_executes_script();
 };
 
-void CoreTests::jsonHelpers_roundTrip() {
-    QTemporaryDir dir;
-    QVERIFY2(dir.isValid(), "Temporary directory should be valid");
+namespace {
+void testJsonHelpers(const std::filesystem::path &tempDir) {
+    std::filesystem::create_directories(tempDir);
+    const auto path = tempDir / "sample.json";
 
-    const QString path = dir.filePath("sample.json");
-    QJsonObject object;
-    object["name"] = "cube";
-    object["size"] = 42;
+    JsonHelpers::JsonObject object{{"name", std::string("cube")}, {"size", int64_t{42}}};
+    const bool saved = JsonHelpers::saveToFile(path, object);
+    assert(saved && "Saving JSON should succeed");
 
-    QVERIFY2(JsonHelpers::saveToFile(path, object), "Saving JSON should succeed");
-
-    const QJsonObject loaded = JsonHelpers::loadFromFile(path);
-    QCOMPARE(loaded.value("name").toString(), QString("cube"));
-    QCOMPARE(loaded.value("size").toInt(), 42);
+    const auto loaded = JsonHelpers::loadFromFile(path);
+    assert(loaded.at("name") == JsonHelpers::JsonValue{std::string("cube")});
+    assert(std::get<int64_t>(loaded.at("size")) == 42);
 }
 
-void CoreTests::settings_roundTrip() {
-    Settings settings;
-    settings.setValue("unitTest/key", 123);
-    QCOMPARE(settings.value("unitTest/key").toInt(), 123);
+void testSettings(const std::filesystem::path &tempDir) {
+    const auto settingsPath = tempDir / "settings.json";
+    Settings settings(settingsPath);
+    settings.setValue("unitTest/key", "123");
+    assert(settings.value("unitTest/key") == "123");
+}
+}
+
+int main() {
+    const auto tempDir = std::filesystem::temp_directory_path() / "aegiscad-tests";
+    testJsonHelpers(tempDir);
+    testSettings(tempDir);
+    std::cout << "All tests passed\n";
+    return 0;
 }
 
 void CoreTests::jsonHelpers_benchmark() {

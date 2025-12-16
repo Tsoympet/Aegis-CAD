@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <QDateTime>
 #include <QObject>
 #include <QString>
@@ -34,6 +35,8 @@ private:
 };
 
 void init();
+void info(const std::string &msg);
+void warn(const std::string &msg);
 void info(const QString &msg);
 void warn(const QString &msg);
 void error(const QString &msg);

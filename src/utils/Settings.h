@@ -1,16 +1,21 @@
 #pragma once
 
-#include <QSettings>
-#include <QString>
+#include <filesystem>
+#include <optional>
+#include <string>
+#include <unordered_map>
 
 class Settings {
 public:
-    Settings();
+    explicit Settings(std::filesystem::path storagePath = {});
 
-    QVariant value(const QString &key, const QVariant &def = {}) const;
-    void setValue(const QString &key, const QVariant &value);
+    std::string value(const std::string &key, const std::string &def = {}) const;
+    void setValue(const std::string &key, const std::string &value);
+    void flush() const;
+    std::filesystem::path storagePath() const { return m_storagePath; }
 
 private:
-    QSettings m_settings;
+    std::filesystem::path m_storagePath;
+    std::unordered_map<std::string, std::string> m_values;
 };
 

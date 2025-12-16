@@ -6,6 +6,8 @@ add_executable(core_tests
     ${CMAKE_SOURCE_DIR}/src/utils/Logging.cpp
 )
 
+target_link_libraries(core_tests PRIVATE aegiscad_core)
+target_include_directories(core_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_link_libraries(core_tests PRIVATE
     Qt6::Test
     Qt6::Widgets
