@@ -11,6 +11,15 @@
 #include <Graphic3d_GraphicDriver.hxx>
 #include <OpenGl_GraphicDriver.hxx>
 #include <Precision.hxx>
+#include <Graphic3d_GraphicDriver.hxx>
+#include <OpenGl_GraphicDriver.hxx>
+#include <Precision.hxx>
+#include <Graphic3d_GraphicDriver.hxx>
+#include <OpenGl_GraphicDriver.hxx>
+#include <Precision.hxx>
+#include <Graphic3d_ClipPlane.hxx>
+#include <Graphic3d_GraphicDriver.hxx>
+#include <OpenGl_GraphicDriver.hxx>
 #include <Quantity_Color.hxx>
 #include <TopoDS_Shape.hxx>
 #include <TopExp_Explorer.hxx>
@@ -88,6 +97,16 @@ void OccView::displayPart(const QString &id, const TopoDS_Shape &shape, const Qu
     update();
 }
 
+void OccView::displayPart(const QString &id, const TopoDS_Shape &shape, const Quantity_Color &color) {
+    if (!m_initialized) return;
+    Handle(AIS_Shape) aisShape = new AIS_Shape(shape);
+    aisShape->SetColor(color);
+    m_parts[id] = aisShape;
+    m_context->Display(aisShape, Standard_True);
+    m_view->FitAll();
+    update();
+}
+
 void OccView::setPartVisible(const QString &id, bool visible) {
     if (!m_initialized) return;
     auto it = m_parts.find(id);
@@ -110,6 +129,9 @@ void OccView::setFeatureColor(const QString &id, const Quantity_Color &color) {
         m_context->Redisplay(asShape, Standard_True);
         update();
     }
+    it->second->SetColor(color);
+    m_context->Redisplay(it->second, Standard_True);
+    update();
 }
 
 void OccView::enableSectionPlane(const gp_Pln &plane) {

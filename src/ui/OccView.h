@@ -14,6 +14,9 @@
 #include <gp_Pnt.hxx>
 
 class AnalysisLegendOverlay;
+#include <V3d_View.hxx>
+#include <memory>
+#include <unordered_map>
 
 class OccView : public QWidget {
     Q_OBJECT
@@ -55,5 +58,6 @@ private:
     QPoint m_lastPos;
     std::unordered_map<QString, Handle(AIS_InteractiveObject)> m_parts;
     AnalysisLegendOverlay *m_legend{nullptr};
+    std::unordered_map<QString, Handle(AIS_Shape)> m_parts;
 };
 

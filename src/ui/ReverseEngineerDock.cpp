@@ -34,6 +34,7 @@
 #ifdef HAVE_TESSERACT
 #include <tesseract/baseapi.h>
 #endif
+#include <QVBoxLayout>
 
 ReverseEngineerDock::ReverseEngineerDock(const QString &title, QWidget *parent)
     : QDockWidget(title, parent) {
@@ -118,6 +119,17 @@ TopoDS_Shape ReverseEngineerDock::generatePlaceholder() const {
         }
     }
 
+    emit modelGenerated(generatePlaceholder());
+}
+
+void ReverseEngineerDock::chooseBlueprint() {
+    const QString path = QFileDialog::getOpenFileName(this, tr("Select blueprint"), QString(), tr("Images (*.png *.jpg *.jpeg *.bmp)"));
+    if (!path.isEmpty()) {
+        m_blueprintPath->setText(path);
+    }
+}
+
+TopoDS_Shape ReverseEngineerDock::generatePlaceholder() const {
     const QString desc = m_prompt->toPlainText().toLower();
     const QString blueprint = m_blueprintPath->text().toLower();
     const bool cylinderHint = desc.contains(QStringLiteral("cylinder")) || blueprint.contains(QStringLiteral("cyl"));
