@@ -74,6 +74,27 @@ ProjectSnapshot ProjectIO::loadProject(const QString &filePath) const {
     return snapshot;
 }
 
+}
+
+ProjectSnapshot ProjectIO::loadProject(const QString &filePath) const {
+    ProjectSnapshot snapshot;
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return snapshot;
+    }
+    QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+    if (!doc.isObject()) {
+        return snapshot;
+    }
+    QJsonObject obj = doc.object();
+    snapshot.shape = deserializeShape(obj.value("shape").toString());
+    QJsonArray history = obj.value("chatHistory").toArray();
+    for (const auto &line : history) {
+        snapshot.chatHistory.push_back(line.toString());
+    }
+    return snapshot;
+}
+
 bool ProjectIO::saveAssembly(const QString &filePath, const AssemblyDocument &assembly) const {
     QJsonObject root;
     QJsonArray nodes;

@@ -14,6 +14,8 @@ endif()
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(OpenCASCADE REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
+find_package(OpenCV QUIET)
+find_package(Tesseract QUIET)
 
 file(GLOB_RECURSE AEGISCAD_SOURCES
     src/app/*.cpp
@@ -45,13 +47,25 @@ target_include_directories(AegisCAD PRIVATE
     src/utils
     src/scripting
     ${OpenCASCADE_INCLUDE_DIR}
+    ${OpenCV_INCLUDE_DIRS}
+    ${Tesseract_INCLUDE_DIRS}
 )
 
 target_link_libraries(AegisCAD PRIVATE
     Qt6::Widgets
     ${OpenCASCADE_LIBRARIES}
     pybind11::embed
+    ${OpenCV_LIBS}
+    ${Tesseract_LIBRARIES}
 )
+
+if (OpenCV_FOUND)
+    target_compile_definitions(AegisCAD PRIVATE HAVE_OPENCV)
+endif()
+
+if (Tesseract_FOUND)
+    target_compile_definitions(AegisCAD PRIVATE HAVE_TESSERACT)
+endif()
 
 target_compile_definitions(AegisCAD PRIVATE QT_NO_KEYWORDS)
 
