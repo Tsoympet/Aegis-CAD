@@ -45,7 +45,7 @@ MainWindow::~MainWindow() = default;
 
 void MainWindow::setupUi() {
     resize(1280, 800);
-    setWindowTitle(tr("AegisCAD"));
+    setWindowTitle(tr("AegisCAD 1.0"));
 
     m_view = new OccView(this);
     setCentralWidget(m_view);
