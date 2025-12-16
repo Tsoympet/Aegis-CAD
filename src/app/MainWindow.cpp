@@ -93,7 +93,7 @@ void MainWindow::setupToolbar() {
     toolbar->addAction(QIcon(":/icons/toolbar_export.svg"), tr("Save Project"), this, &MainWindow::saveProject);
 
     QAction *exportStep = toolbar->addAction(QIcon(":/icons/toolbar_export.svg"), tr("Export STEP"), this, &MainWindow::exportStepFile);
-    QAction *exportGltf = toolbar->addAction(QIcon(":/icons/toolbar_analysis.svg"), tr("Export glTF"), this, &MainWindow::exportGltfFile);
+    QAction *exportGltf = toolbar->addAction(QIcon(":/icons/toolbar_gltf.svg"), tr("Export glTF"), this, &MainWindow::exportGltfFile);
 
     toolbar->addSeparator();
     toolbar->addAction(QIcon(":/icons/toolbar_analysis.svg"), tr("Run Analysis"), this, &MainWindow::runAnalysis);
