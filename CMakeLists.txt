@@ -4,20 +4,12 @@ project(AegisCAD VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
+
 include(CTest)
 
-set(AEGISCAD_UTILS
-    src/utils/JsonHelpers.cpp
-    src/utils/Logging.cpp
-    src/utils/Settings.cpp
-)
-
-add_library(aegiscad_core STATIC ${AEGISCAD_UTILS})
-target_include_directories(aegiscad_core PUBLIC src)
-
-add_executable(AegisCAD src/app/main.cpp)
-target_link_libraries(AegisCAD PRIVATE aegiscad_core)
-target_include_directories(AegisCAD PRIVATE src)
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
@@ -41,15 +33,16 @@ file(GLOB_RECURSE AEGISCAD_SOURCES
     src/scripting/*.cpp
 )
 
+set(AEGISCAD_APP_ENTRY ${CMAKE_CURRENT_SOURCE_DIR}/src/app/main.cpp)
+list(REMOVE_ITEM AEGISCAD_SOURCES ${AEGISCAD_APP_ENTRY})
+
 set(AEGISCAD_RESOURCES
     resources/aegiscad.qrc
 )
 
-add_library(AegisCADLib
-    ${AEGISCAD_SOURCES}
-)
+add_library(AegisCADLib ${AEGISCAD_SOURCES})
 
-target_include_directories(AegisCADLib PRIVATE
+target_include_directories(AegisCADLib PUBLIC
     src/app
     src/ui
     src/cad
@@ -89,6 +82,7 @@ target_compile_options(AegisCADLib PRIVATE
 )
 
 add_executable(AegisCAD
+    ${AEGISCAD_APP_ENTRY}
     ${AEGISCAD_RESOURCES}
 )
 

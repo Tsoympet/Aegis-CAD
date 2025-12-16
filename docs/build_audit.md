@@ -1,6 +1,13 @@
 # AegisCAD Build Audit (CMake configure stage)
 
 ## Configure results
+- `cmake -B build -S .` still fails until Qt6 is available: CMake reports that `Qt6Config.cmake/qt6-config.cmake` cannot be found, so Qt must be installed or `Qt6_DIR` added to `CMAKE_PREFIX_PATH` (e.g., `qt6-base-dev` on Ubuntu or a vcpkg Qt6 toolchain on Windows/MSVC).【96aab2†L1-L17】
+
+## CMake structure observations
+- The build now enables AUTOMOC/AUTORCC/AUTOUIC, ensures `src/app/main.cpp` is compiled only into the `AegisCAD` executable, and links the executable solely against `AegisCADLib`, preventing duplicate target definitions and repeated utility objects. All source subdirectories under `src` remain part of `AegisCADLib` once configuration succeeds.【F:CMakeLists.txt†L3-L84】
+
+## Header/Qt signal-slot review
+- `ReverseEngineerDock.h` is de-duplicated: the slot is declared once, member pointers appear once, and missing Qt string includes were added for MOC/compilation compatibility.【F:src/ui/ReverseEngineerDock.h†L1-L42】
 - `cmake -B build -S .` fails immediately because Qt6 package config files are missing. CMake reports that `Qt6Config.cmake/qt6-config.cmake` cannot be found, so Qt must be installed or `Qt6_DIR` added to `CMAKE_PREFIX_PATH` (e.g., `qt6-base-dev` on Ubuntu or a vcpkg Qt6 toolchain on Windows/MSVC).【96aab2†L1-L17】
 
 ## CMake structure observations
