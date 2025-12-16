@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" style="background:#141a22;font-family:Segoe UI,Arial,sans-serif;">
+  <rect x="60" y="60" width="1160" height="140" fill="none" stroke="#00aaff" stroke-width="3" />
+  <text x="640" y="130" fill="#e8f4ff" font-size="22" text-anchor="middle">Prompt input + suggested actions</text>
+  <rect x="60" y="220" width="1160" height="140" fill="none" stroke="#8090a0" stroke-width="3" />
+  <text x="640" y="290" fill="#c9d8e6" font-size="20" text-anchor="middle">Design constraints + reverse-engineering notes</text>
+  <rect x="60" y="380" width="1160" height="140" fill="none" stroke="#00aaff" stroke-width="3" />
+  <text x="640" y="450" fill="#e8f4ff" font-size="22" text-anchor="middle">AI responses with inline actions</text>
+  <rect x="60" y="540" width="1160" height="140" fill="none" stroke="#8090a0" stroke-width="3" />
+  <text x="640" y="610" fill="#c9d8e6" font-size="20" text-anchor="middle">Send to Python console or add to script</text>
+</svg>

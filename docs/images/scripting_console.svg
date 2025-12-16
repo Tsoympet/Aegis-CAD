@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" style="background:#141a22;font-family:Segoe UI,Arial,sans-serif;">
+  <rect x="40" y="40" width="1200" height="260" fill="none" stroke="#00aaff" stroke-width="3" />
+  <text x="640" y="170" fill="#e8f4ff" font-size="22" text-anchor="middle">Python script editor (pybind11 API helpers)</text>
+  <rect x="40" y="320" width="1200" height="200" fill="none" stroke="#8090a0" stroke-width="3" />
+  <text x="640" y="420" fill="#c9d8e6" font-size="20" text-anchor="middle">Console output + errors</text>
+  <rect x="40" y="540" width="1200" height="140" fill="none" stroke="#00aaff" stroke-width="3" />
+  <text x="640" y="610" fill="#e8f4ff" font-size="22" text-anchor="middle">Command palette / run selection</text>
+</svg>
