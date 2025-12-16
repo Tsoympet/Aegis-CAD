@@ -22,6 +22,9 @@ public:
     void setView(OccView *view);
     void setShapeProvider(const std::function<TopoDS_Shape()> &provider);
 
+public slots:
+    void previewCurrentToolpath();
+
 private slots:
     void beginFaceSelection();
     void beginEdgeSelection();
