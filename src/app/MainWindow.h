@@ -1,12 +1,16 @@
 #pragma once
 
+#include "../ai/AegisAIEngine.h"
+
 #include <QMainWindow>
+#include <TopoDS_Shape.hxx>
 #include <memory>
 
 class OccView;
 class AnalysisLegendOverlay;
 class AegisAssistantDock;
 class ReverseEngineerDock;
+class CamDock;
 class PythonConsoleDock;
 class AnalysisManager;
 class AegisAIEngine;
@@ -25,8 +29,10 @@ private slots:
     void openStepFile();
     void exportStepFile();
     void exportGltfFile();
+    void saveProject();
+    void loadProject();
     void runAnalysis();
-    void regenerateFromReverse(const QString &prompt);
+    void regenerateFromReverse(const TopoDS_Shape &shape);
     void evaluateAIAssistant(const QString &prompt);
 
 private:
@@ -34,11 +40,13 @@ private:
     void setupDocks();
     void setupToolbar();
     void loadSamplePart();
+    std::vector<AegisAIEngine::PartInsight> buildInsights();
 
     OccView *m_view{nullptr};
     AnalysisLegendOverlay *m_legend{nullptr};
     AegisAssistantDock *m_aiDock{nullptr};
     ReverseEngineerDock *m_reverseDock{nullptr};
+    CamDock *m_camDock{nullptr};
     PythonConsoleDock *m_pythonDock{nullptr};
 
     std::unique_ptr<AnalysisManager> m_analysis;
