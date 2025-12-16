@@ -1,0 +1,46 @@
+name: Static Analysis & Style
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  clang-tidy:
+    name: Clang-Tidy Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-tidy qtbase5-dev libocct-data-exchange-dev libocct-ocaf-dev libocct-visualization-dev libglu1-mesa-dev pybind11-dev
+
+      - name: Configure CMake
+        run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: Build targets for analysis
+        run: cmake --build build --config Release --target AegisCAD -- -j2
+
+      - name: Run clang-tidy
+        run: |
+          FILES=$(find src -name "*.cpp")
+          clang-tidy -p build $FILES
+
+  clang-format:
+    name: Clang-Format Style Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Enforce formatting
+        run: |
+          FILES=$(find src tests -name "*.cpp" -o -name "*.h")
+          if [ -n "$FILES" ]; then
+            clang-format --dry-run --Werror $FILES
+          fi

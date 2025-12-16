@@ -7,6 +7,7 @@
 #include "../ui/ReverseEngineerDock.h"
 #include "../ui/CamDock.h"
 #include "../ui/PythonConsoleDock.h"
+#include "../ui/LogConsoleDock.h"
 #include "../cad/StepIgesIO.h"
 #include "../cad/GltfExporter.h"
 #include "../cad/PartRegistry.h"
@@ -39,6 +40,7 @@ MainWindow::MainWindow(QWidget *parent)
     setupToolbar();
     setupDocks();
     loadSamplePart();
+    Logging::info(tr("Main window initialized"));
 }
 
 MainWindow::~MainWindow() = default;
@@ -75,6 +77,9 @@ void MainWindow::setupDocks() {
     m_profilerDock->attachView(m_view);
     addDockWidget(Qt::RightDockWidgetArea, m_profilerDock);
 
+    m_logDock = new LogConsoleDock(tr("Logs"), this);
+    addDockWidget(Qt::BottomDockWidgetArea, m_logDock);
+
     m_pythonDock = new PythonConsoleDock(tr("Python Console"), m_view, m_analysis.get(), m_aiEngine.get(), m_projectIO.get(), this);
     addDockWidget(Qt::BottomDockWidgetArea, m_pythonDock);
 
@@ -108,31 +113,38 @@ void MainWindow::openStepFile() {
     const QString file = QFileDialog::getOpenFileName(this, tr("Open STEP/IGES"), QString(), tr("STEP/IGES (*.stp *.step *.igs *.iges)"));
     if (file.isEmpty()) return;
 
+    Logging::info(tr("Importing geometry from %1").arg(QFileInfo(file).fileName()));
     auto shape = m_io->importFile(file);
     if (shape.IsNull()) {
         QMessageBox::warning(this, tr("Import failed"), tr("No geometry could be loaded."));
+        Logging::error(tr("Import failed for %1").arg(file));
         return;
     }
 
     m_partRegistry->addPart(file, shape);
     m_view->displayShape(shape);
     statusBar()->showMessage(tr("Loaded %1").arg(QFileInfo(file).fileName()), 3000);
+    Logging::info(tr("Loaded geometry: %1").arg(QFileInfo(file).fileName()));
 }
 
 void MainWindow::exportStepFile() {
     const QString file = QFileDialog::getSaveFileName(this, tr("Export STEP"), QString(), tr("STEP (*.stp *.step)"));
     if (file.isEmpty()) return;
 
+    Logging::info(tr("Exporting STEP to %1").arg(QFileInfo(file).fileName()));
     auto shape = m_partRegistry->activeShape();
     if (shape.IsNull()) {
         QMessageBox::warning(this, tr("Nothing to export"), tr("No geometry in the workspace."));
+        Logging::warn(tr("Export aborted: no active shape"));
         return;
     }
 
     if (!m_io->exportStep(file, shape)) {
         QMessageBox::warning(this, tr("Export failed"), tr("The STEP file could not be written."));
+        Logging::error(tr("STEP export failed for %1").arg(file));
     } else {
         statusBar()->showMessage(tr("Exported STEP to %1").arg(QFileInfo(file).fileName()), 3000);
+        Logging::info(tr("STEP export complete: %1").arg(QFileInfo(file).fileName()));
     }
 }
 
@@ -140,16 +152,20 @@ void MainWindow::exportGltfFile() {
     const QString file = QFileDialog::getSaveFileName(this, tr("Export glTF"), QString(), tr("glTF (*.gltf)"));
     if (file.isEmpty()) return;
 
+    Logging::info(tr("Exporting glTF to %1").arg(QFileInfo(file).fileName()));
     auto shape = m_partRegistry->activeShape();
     if (shape.IsNull()) {
         QMessageBox::warning(this, tr("Nothing to export"), tr("No geometry in the workspace."));
+        Logging::warn(tr("glTF export aborted: no active shape"));
         return;
     }
 
     if (!m_gltf->exportShape(file, shape)) {
         QMessageBox::warning(this, tr("Export failed"), tr("The glTF file could not be written."));
+        Logging::error(tr("glTF export failed for %1").arg(file));
     } else {
         statusBar()->showMessage(tr("Exported glTF to %1").arg(QFileInfo(file).fileName()), 3000);
+        Logging::info(tr("glTF export complete: %1").arg(QFileInfo(file).fileName()));
     }
 }
 
@@ -157,9 +173,11 @@ void MainWindow::runAnalysis() {
     auto shape = m_partRegistry->activeShape();
     if (shape.IsNull()) {
         QMessageBox::information(this, tr("Analysis"), tr("Load or generate geometry before running analysis."));
+        Logging::warn(tr("Analysis requested without an active shape"));
         return;
     }
 
+    Logging::info(tr("Running analysis on active shape"));
     m_analysis->setModel(shape);
     DomainTemplates templates;
     m_analysis->setAnalysisCase(templates.defaultCase(DomainTemplateKind::Car, shape));
@@ -169,17 +187,20 @@ void MainWindow::runAnalysis() {
         m_legend->show();
     }
     statusBar()->showMessage(tr("Analysis complete"), 3000);
+    Logging::info(tr("Analysis complete: max stress %1 Pa").arg(result.maxStress));
 }
 
 void MainWindow::regenerateFromReverse(const TopoDS_Shape &shape) {
     if (shape.IsNull()) {
         QMessageBox::warning(this, tr("Reverse engineer"), tr("Could not synthesize geometry from the prompt."));
+        Logging::error(tr("Reverse engineering failed to produce geometry"));
         return;
     }
     const QString id = m_partRegistry->addPart(tr("ReverseModel"), shape);
     m_partRegistry->setMaterial(id, QStringLiteral("Aluminum 6061"));
     m_view->displayShape(shape);
     statusBar()->showMessage(tr("Generated geometry from prompt"), 2000);
+    Logging::info(tr("Reverse engineering produced geometry: %1").arg(id));
 }
 
 void MainWindow::evaluateAIAssistant(const QString &prompt) {
@@ -188,11 +209,13 @@ void MainWindow::evaluateAIAssistant(const QString &prompt) {
     }
     m_aiEngine->setSceneInsights(buildInsights());
     m_aiEngine->setStressSnapshot(m_analysis->lastResult());
+    Logging::info(tr("AI assistant query: %1").arg(prompt));
     auto advice = m_aiEngine->evaluate(prompt);
     if (m_aiDock) {
         m_aiDock->appendAdvice(advice);
     }
     statusBar()->showMessage(tr("AI assistant responded"), 2000);
+    Logging::info(tr("AI assistant responded with %1 characters").arg(advice.length()));
 }
 
 void MainWindow::loadSamplePart() {
@@ -202,6 +225,7 @@ void MainWindow::loadSamplePart() {
         m_partRegistry->addPart("Sample Cube", shape);
         m_view->displayShape(shape);
         statusBar()->showMessage(tr("Loaded sample model"), 2000);
+        Logging::info(tr("Loaded bundled sample model"));
     }
 }
 
@@ -217,8 +241,10 @@ void MainWindow::saveProject() {
 
     if (!m_projectIO->saveProject(file, snapshot)) {
         QMessageBox::warning(this, tr("Save failed"), tr("Project could not be written."));
+        Logging::error(tr("Project save failed: %1").arg(file));
     } else {
         statusBar()->showMessage(tr("Saved project"), 2000);
+        Logging::info(tr("Saved project to %1").arg(QFileInfo(file).fileName()));
     }
 }
 
@@ -226,6 +252,7 @@ void MainWindow::loadProject() {
     const QString file = QFileDialog::getOpenFileName(this, tr("Open Project"), QString(), tr("Aegis Project (*.aegisproj)"));
     if (file.isEmpty()) return;
 
+    Logging::info(tr("Loading project from %1").arg(QFileInfo(file).fileName()));
     auto snapshot = m_projectIO->loadProject(file);
     if (!snapshot.shape.IsNull()) {
         m_partRegistry->addPart(QFileInfo(file).fileName(), snapshot.shape);
@@ -235,6 +262,7 @@ void MainWindow::loadProject() {
         m_aiDock->setHistory(snapshot.chatHistory);
     }
     statusBar()->showMessage(tr("Project loaded"), 2000);
+    Logging::info(tr("Project load finished"));
 }
 
 std::vector<AegisAIEngine::PartInsight> MainWindow::buildInsights() {
