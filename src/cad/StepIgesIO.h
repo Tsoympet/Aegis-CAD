@@ -9,5 +9,6 @@ public:
 
     TopoDS_Shape importFile(const QString &path) const;
     bool exportStep(const QString &path, const TopoDS_Shape &shape) const;
+    bool exportIges(const QString &path, const TopoDS_Shape &shape) const;
 };
 
