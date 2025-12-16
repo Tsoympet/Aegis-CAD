@@ -56,6 +56,10 @@ ctest --test-dir build --output-on-failure
 ## Running
 The built executable lives in `build/AegisCAD` (or `build/Release/AegisCAD.exe` on Windows). Launch it to load the sample cube, then use the toolbar for STEP/glTF operations, run the analysis stub, or drive the AI/Python docks.
 
+## Scripting
+See [docs/scripting.md](docs/scripting.md) for the list of exported Python helpers, sample scripts, and guidance on invoking
+`ScriptRunner` programmatically.
+
 ## Repository Layout
 - `src/app` – application bootstrap, main window, project IO
 - `src/ui` – OCC view widget, docks, and styling

@@ -7,13 +7,42 @@
 #include "../ui/OccView.h"
 
 #include <array>
+#include <sstream>
 #include <QJsonDocument>
 #include <QString>
+#include <gp.hxx>
 #include <pybind11/stl.h>
 
 namespace py = pybind11;
 
 namespace {
+
+double requirePositive(const char *name, double value) {
+    if (value <= 0.0) {
+        std::ostringstream oss;
+        oss << name << " must be positive";
+        throw py::value_error(oss.str());
+    }
+    return value;
+}
+
+gp_Vec requireDirection(const std::array<double, 3> &arr, const char *name) {
+    const gp_Vec vec = vecFromArray(arr);
+    if (vec.SquareMagnitude() <= gp::Resolution()) {
+        std::ostringstream oss;
+        oss << name << " must be a non-zero vector";
+        throw py::value_error(oss.str());
+    }
+    return vec;
+}
+
+void ensureShapeValid(const TopoDS_Shape &shape, const char *name) {
+    if (shape.IsNull()) {
+        std::ostringstream oss;
+        oss << name << " cannot be an empty shape";
+        throw py::value_error(oss.str());
+    }
+}
 
 gp_Vec vecFromArray(const std::array<double, 3> &arr) {
     return gp_Vec(arr[0], arr[1], arr[2]);
@@ -136,28 +165,103 @@ namespace PyBindings {
 void registerBindings(py::module_ &m, OccView *view, AnalysisManager *analysis, AegisAIEngine *aiEngine) {
     py::class_<TopoDS_Shape>(m, "Shape").def(py::init<>());
 
-    m.def("make_box", [](double size) { return FeatureOps::makeBox(size); }, "Generate a simple box");
-    m.def("make_cylinder", [](double r, double h) { return FeatureOps::makeCylinder(r, h); }, "Generate a cylinder");
+    m.def("make_box",
+          [](double size) {
+              requirePositive("size", size);
+              return FeatureOps::makeBox(size);
+          },
+          py::arg("size"),
+          R"doc(Create a box solid.
+
+Args:
+    size (float): Uniform edge length (> 0).
+
+Returns:
+    Shape: A TopoDS_Shape representing the box.
+          )doc");
+    m.def("make_cylinder",
+          [](double r, double h) {
+              requirePositive("radius", r);
+              requirePositive("height", h);
+              return FeatureOps::makeCylinder(r, h);
+          },
+          py::arg("radius"), py::arg("height"),
+          R"doc(Create a right circular cylinder.
+
+Args:
+    radius (float): Cylinder radius (> 0).
+    height (float): Cylinder height (> 0).
+
+Returns:
+    Shape: A TopoDS_Shape representing the cylinder.
+          )doc");
     m.def("extrude",
           [](const TopoDS_Shape &profile, double height, const std::array<double, 3> &direction) {
-              return FeatureOps::extrude(profile, height, vecFromArray(direction));
+              ensureShapeValid(profile, "profile");
+              requirePositive("height", height);
+              const gp_Vec dir = requireDirection(direction, "direction");
+              return FeatureOps::extrude(profile, height, dir);
           },
           py::arg("profile"), py::arg("height"), py::arg("direction") = std::array<double, 3>{0, 0, 1},
-          "Extrude a profile along a direction vector.");
+          R"doc(Extrude a profile along a direction vector.
+
+Args:
+    profile (Shape): The profile to extrude; cannot be empty.
+    height (float): Length of the extrusion (> 0).
+    direction (tuple[float, float, float], optional): Direction vector; must be non-zero. Defaults to (0, 0, 1).
+
+Returns:
+    Shape: The resulting prismatic solid.
+          )doc");
     m.def("revolve",
           [](const TopoDS_Shape &profile, const std::array<double, 3> &axisPoint, const std::array<double, 3> &axisDir, double angle) {
-              gp_Ax1 axis(pointFromArray(axisPoint), gp_Dir(vecFromArray(axisDir)));
+              ensureShapeValid(profile, "profile");
+              const gp_Vec axisVec = requireDirection(axisDir, "axis_dir");
+              gp_Ax1 axis(pointFromArray(axisPoint), gp_Dir(axisVec));
               return FeatureOps::revolve(profile, axis, angle);
           },
           py::arg("profile"), py::arg("axis_point"), py::arg("axis_dir"), py::arg("angle"),
-          "Revolve a profile about an axis");
-    m.def("fillet", [](const TopoDS_Shape &shape, double radius) { return FeatureOps::fillet(shape, radius); },
-          py::arg("shape"), py::arg("radius"), "Apply a constant fillet to edges");
+          R"doc(Revolve a profile about an axis.
+
+Args:
+    profile (Shape): The profile to revolve; cannot be empty.
+    axis_point (tuple[float, float, float]): A point on the rotation axis.
+    axis_dir (tuple[float, float, float]): Direction vector of the axis; must be non-zero.
+    angle (float): Rotation angle in radians.
+
+Returns:
+    Shape: The resulting revolved solid.
+          )doc");
+    m.def("fillet",
+          [](const TopoDS_Shape &shape, double radius) {
+              ensureShapeValid(shape, "shape");
+              requirePositive("radius", radius);
+              return FeatureOps::fillet(shape, radius);
+          },
+          py::arg("shape"), py::arg("radius"),
+          R"doc(Apply a constant-radius fillet to all eligible edges.
+
+Args:
+    shape (Shape): Target shape; cannot be empty.
+    radius (float): Fillet radius (> 0).
+
+Returns:
+    Shape: A shape with filleted edges.
+          )doc");
 
     if (view) {
-        m.def("display", [view](const TopoDS_Shape &shape) { view->displayShape(shape); }, "Display a shape in the active view");
-        m.def("clear", [view]() { view->clearView(); }, "Clear all shapes from the view");
-        m.def("zoom_fit", [view]() { view->zoomToFit(); }, "Zoom the viewer to fit displayed content");
+        m.def("display",
+              [view](const TopoDS_Shape &shape) {
+                  ensureShapeValid(shape, "shape");
+                  view->displayShape(shape);
+              },
+              py::arg("shape"), R"doc(Display a shape in the active view.
+
+Args:
+    shape (Shape): The shape to render; cannot be empty.
+          )doc");
+        m.def("clear", [view]() { view->clearView(); }, R"doc(Clear all shapes from the view.)doc");
+        m.def("zoom_fit", [view]() { view->zoomToFit(); }, R"doc(Zoom the viewer to fit displayed content.)doc");
     }
 
     bindAnalysis(m);
