@@ -2,9 +2,10 @@
 
 #include <AIS_Shape.hxx>
 #include <Aspect_DisplayConnection.hxx>
-#include <BRepPrimAPI_MakeBox.hxx>
+#include <Graphic3d_ClipPlane.hxx>
 #include <Graphic3d_GraphicDriver.hxx>
 #include <OpenGl_GraphicDriver.hxx>
+#include <Quantity_Color.hxx>
 #include <TopoDS_Shape.hxx>
 #include <WNT_Window.hxx>
 #ifndef _WIN32
@@ -53,11 +54,65 @@ void OccView::initializeViewer() {
 
 void OccView::displayShape(const TopoDS_Shape &shape) {
     if (!m_initialized) return;
+    m_parts.clear();
     m_context->RemoveAll(false);
     Handle(AIS_Shape) aisShape = new AIS_Shape(shape);
+    m_parts.emplace("active", aisShape);
     m_context->Display(aisShape, Standard_True);
     m_view->FitAll();
     update();
+}
+
+void OccView::displayPart(const QString &id, const TopoDS_Shape &shape, const Quantity_Color &color) {
+    if (!m_initialized) return;
+    Handle(AIS_Shape) aisShape = new AIS_Shape(shape);
+    aisShape->SetColor(color);
+    m_parts[id] = aisShape;
+    m_context->Display(aisShape, Standard_True);
+    m_view->FitAll();
+    update();
+}
+
+void OccView::setPartVisible(const QString &id, bool visible) {
+    if (!m_initialized) return;
+    auto it = m_parts.find(id);
+    if (it == m_parts.end()) return;
+    if (visible) {
+        m_context->Display(it->second, Standard_True);
+    } else {
+        m_context->Erase(it->second, Standard_True);
+    }
+    update();
+}
+
+void OccView::setFeatureColor(const QString &id, const Quantity_Color &color) {
+    auto it = m_parts.find(id);
+    if (it == m_parts.end()) return;
+    it->second->SetColor(color);
+    m_context->Redisplay(it->second, Standard_True);
+    update();
+}
+
+void OccView::enableSectionPlane(const gp_Pln &plane) {
+    if (!m_initialized) return;
+    m_clipPlane = new Graphic3d_ClipPlane(plane);
+    updateClipPlanes();
+}
+
+void OccView::disableSectionPlane() {
+    if (!m_initialized) return;
+    if (!m_clipPlane.IsNull()) {
+        m_view->RemoveClipPlane(m_clipPlane);
+    }
+    m_clipPlane.Nullify();
+    m_view->Redraw();
+}
+
+void OccView::updateClipPlanes() {
+    if (m_clipPlane.IsNull()) return;
+    m_view->RemoveClipPlane(m_clipPlane);
+    m_view->AddClipPlane(m_clipPlane);
+    m_view->Redraw();
 }
 
 void OccView::paintEvent(QPaintEvent *) {
