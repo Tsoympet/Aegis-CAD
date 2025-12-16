@@ -1,20 +1,38 @@
 #include "OccView.h"
 
+#include "AnalysisLegendOverlay.h"
+
+#include <AIS_ColoredShape.hxx>
 #include <AIS_Shape.hxx>
 #include <Aspect_DisplayConnection.hxx>
+#include <BRepGProp.hxx>
+#include <GProp_GProps.hxx>
+#include <Graphic3d_ClipPlane.hxx>
+#include <Graphic3d_GraphicDriver.hxx>
+#include <OpenGl_GraphicDriver.hxx>
+#include <Precision.hxx>
 #include <Graphic3d_ClipPlane.hxx>
 #include <Graphic3d_GraphicDriver.hxx>
 #include <OpenGl_GraphicDriver.hxx>
 #include <Quantity_Color.hxx>
 #include <TopoDS_Shape.hxx>
+#include <TopExp_Explorer.hxx>
+#include <TopAbs.hxx>
+#include <BRep_Tool.hxx>
+#include <BRepAdaptor_Surface.hxx>
+#include <GProp_GProps.hxx>
 #include <WNT_Window.hxx>
 #ifndef _WIN32
 #include <Xw_Window.hxx>
 #endif
 
+#include <Bnd_Box.hxx>
+#include <BRepBndLib.hxx>
+
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QResizeEvent>
+#include <algorithm>
 
 OccView::OccView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_NoSystemBackground);
@@ -73,6 +91,16 @@ void OccView::displayPart(const QString &id, const TopoDS_Shape &shape, const Qu
     update();
 }
 
+void OccView::displayPart(const QString &id, const TopoDS_Shape &shape, const Quantity_Color &color) {
+    if (!m_initialized) return;
+    Handle(AIS_Shape) aisShape = new AIS_Shape(shape);
+    aisShape->SetColor(color);
+    m_parts[id] = aisShape;
+    m_context->Display(aisShape, Standard_True);
+    m_view->FitAll();
+    update();
+}
+
 void OccView::setPartVisible(const QString &id, bool visible) {
     if (!m_initialized) return;
     auto it = m_parts.find(id);
@@ -88,6 +116,13 @@ void OccView::setPartVisible(const QString &id, bool visible) {
 void OccView::setFeatureColor(const QString &id, const Quantity_Color &color) {
     auto it = m_parts.find(id);
     if (it == m_parts.end()) return;
+    Handle(AIS_InteractiveObject) ais = it->second;
+    Handle(AIS_Shape) asShape = Handle(AIS_Shape)::DownCast(ais);
+    if (!asShape.IsNull()) {
+        asShape->SetColor(color);
+        m_context->Redisplay(asShape, Standard_True);
+        update();
+    }
     it->second->SetColor(color);
     m_context->Redisplay(it->second, Standard_True);
     update();
@@ -106,6 +141,68 @@ void OccView::disableSectionPlane() {
     }
     m_clipPlane.Nullify();
     m_view->Redraw();
+}
+
+void OccView::attachLegend(AnalysisLegendOverlay *legend) {
+    m_legend = legend;
+}
+
+Quantity_Color OccView::interpolateColor(double t) const {
+    t = std::clamp(t, 0.0, 1.0);
+    // blue (low) -> yellow -> red (high)
+    if (t < 0.5) {
+        const double alpha = t * 2.0;
+        return Quantity_Color(0.0 + alpha * 1.0, 0.47 + alpha * 0.3, 1.0 - alpha * 0.3, Quantity_TOC_RGB);
+    }
+    const double alpha = (t - 0.5) * 2.0;
+    return Quantity_Color(1.0, 0.77 + alpha * 0.2, 0.7 - alpha * 0.7, Quantity_TOC_RGB);
+}
+
+void OccView::applyFieldSamples(const QString &id, const std::vector<std::pair<gp_Pnt, double>> &samples, double minVal, double maxVal) {
+    auto it = m_parts.find(id);
+    if (it == m_parts.end()) return;
+    if (samples.empty()) return;
+
+    Handle(AIS_Shape) base = Handle(AIS_Shape)::DownCast(it->second);
+    if (base.IsNull()) return;
+
+    const TopoDS_Shape shape = base->Shape();
+    Handle(AIS_ColoredShape) colored = new AIS_ColoredShape(shape);
+
+    for (TopExp_Explorer exp(shape, TopAbs_FACE); exp.More(); exp.Next()) {
+        const TopoDS_Face &face = TopoDS::Face(exp.Current());
+        GProp_GProps props;
+        BRepGProp::SurfaceProperties(face, props);
+        const gp_Pnt center = props.CentreOfMass();
+        double nearest = samples.front().second;
+        double bestDist = center.Distance(samples.front().first);
+        for (const auto &sample : samples) {
+            const double d = center.Distance(sample.first);
+            if (d < bestDist) {
+                bestDist = d;
+                nearest = sample.second;
+            }
+        }
+        double t = (maxVal - minVal) < Precision::Confusion() ? 0.0 : (nearest - minVal) / (maxVal - minVal);
+        colored->SetCustomColor(face, interpolateColor(t));
+    }
+
+    m_context->Remove(base, false);
+    m_parts[id] = colored;
+    m_context->Display(colored, Standard_True);
+    m_view->Redraw();
+    update();
+}
+
+void OccView::clearAnalysisColoring() {
+    for (auto &pair : m_parts) {
+        Handle(AIS_Shape) shape = Handle(AIS_Shape)::DownCast(pair.second);
+        if (!shape.IsNull()) {
+            shape->UnsetColor();
+            m_context->Redisplay(shape, Standard_True);
+        }
+    }
+    update();
 }
 
 void OccView::updateClipPlanes() {

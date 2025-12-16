@@ -4,6 +4,16 @@
 #include <AIS_InteractiveContext.hxx>
 #include <Graphic3d_ClipPlane.hxx>
 #include <Quantity_Color.hxx>
+#include <TopoDS_Shape.hxx>
+#include <V3d_View.hxx>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+#include <gp_Pln.hxx>
+#include <gp_Pnt.hxx>
+
+class AnalysisLegendOverlay;
 #include <V3d_View.hxx>
 #include <memory>
 #include <unordered_map>
@@ -21,6 +31,10 @@ public:
     void enableSectionPlane(const gp_Pln &plane);
     void disableSectionPlane();
 
+    void attachLegend(AnalysisLegendOverlay *legend);
+    void applyFieldSamples(const QString &id, const std::vector<std::pair<gp_Pnt, double>> &samples, double minVal, double maxVal);
+    void clearAnalysisColoring();
+
 protected:
     QPaintEngine *paintEngine() const override { return nullptr; }
     void paintEvent(QPaintEvent *) override;
@@ -33,6 +47,7 @@ protected:
 private:
     void initializeViewer();
     void updateClipPlanes();
+    Quantity_Color interpolateColor(double t) const;
 
     Handle(V3d_Viewer) m_viewer;
     Handle(AIS_InteractiveContext) m_context;
@@ -41,6 +56,8 @@ private:
     bool m_initialized{false};
     Qt::MouseButton m_lastButton{Qt::NoButton};
     QPoint m_lastPos;
+    std::unordered_map<QString, Handle(AIS_InteractiveObject)> m_parts;
+    AnalysisLegendOverlay *m_legend{nullptr};
     std::unordered_map<QString, Handle(AIS_Shape)> m_parts;
 };
 
