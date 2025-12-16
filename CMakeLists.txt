@@ -25,6 +25,7 @@ file(GLOB_RECURSE AEGISCAD_SOURCES
     src/assembly/*.cpp
     src/analysis/*.cpp
     src/ai/*.cpp
+    src/drafting/*.cpp
     src/utils/*.cpp
     src/scripting/*.cpp
 )
@@ -46,6 +47,7 @@ target_include_directories(AegisCAD PRIVATE
     src/assembly
     src/analysis
     src/ai
+    src/drafting
     src/utils
     src/scripting
     ${OpenCASCADE_INCLUDE_DIR}
