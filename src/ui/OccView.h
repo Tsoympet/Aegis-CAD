@@ -8,6 +8,9 @@
 #include <TopoDS_Shape.hxx>
 #include <TopoDS_Face.hxx>
 #include <TopoDS_Edge.hxx>
+#include <Graphic3d_ClipPlane.hxx>
+#include <Quantity_Color.hxx>
+#include <TopoDS_Shape.hxx>
 #include <V3d_View.hxx>
 #include <memory>
 #include <unordered_map>
@@ -17,6 +20,9 @@
 #include <gp_Pnt.hxx>
 
 class AnalysisLegendOverlay;
+#include <V3d_View.hxx>
+#include <memory>
+#include <unordered_map>
 
 class OccView : public QWidget {
     Q_OBJECT
@@ -68,5 +74,6 @@ private:
     bool m_camSelectFaces{false};
     bool m_camSelectEdges{false};
     std::vector<Handle(AIS_PolyLine)> m_toolpaths;
+    std::unordered_map<QString, Handle(AIS_Shape)> m_parts;
 };
 
