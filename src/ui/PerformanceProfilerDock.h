@@ -21,6 +21,8 @@ private:
 
     QLabel *m_fpsLabel{nullptr};
     QLabel *m_frameTimeLabel{nullptr};
+    QLabel *m_averageFrameLabel{nullptr};
+    QLabel *m_peakFrameLabel{nullptr};
     QLabel *m_memoryLabel{nullptr};
     QLabel *m_cacheLabel{nullptr};
     QLabel *m_partsLabel{nullptr};

@@ -7,6 +7,7 @@
 #include <Bnd_Box.hxx>
 #include <QFile>
 #include <QProcess>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTextStream>
 #include <cmath>
@@ -178,21 +179,32 @@ BackendFEA_CalculiX::Result BackendFEA_CalculiX::runAnalysis() {
         return r;
     }
 
+    const QString solverPath = QStandardPaths::findExecutable(QStringLiteral("ccx"));
+    if (solverPath.isEmpty()) {
+        Result missing = synthesizeFallback();
+        missing.summary = QStringLiteral("CalculiX solver not found on PATH; synthetic field returned.");
+        return missing;
+    }
+
     QTemporaryDir tmpDir;
     if (!tmpDir.isValid()) {
         return synthesizeFallback();
     }
 
     const QString inpPath = writeInputDeck(tmpDir.path());
-    Q_UNUSED(inpPath);
+    if (inpPath.isEmpty()) {
+        Result badDeck = synthesizeFallback();
+        badDeck.summary = QStringLiteral("Failed to write CalculiX deck.");
+        return badDeck;
+    }
     const QString jobName = tmpDir.path() + "/analysis";
 
     QProcess process;
-    process.setProgram(QStringLiteral("ccx"));
+    process.setProgram(solverPath);
     process.setArguments({jobName});
     process.setWorkingDirectory(tmpDir.path());
     process.start();
-    process.waitForFinished(15000);
+    const bool finished = process.waitForFinished(15000);
 
     const QString frdPath = jobName + QStringLiteral(".frd");
     const QString datPath = jobName + QStringLiteral(".dat");
@@ -206,11 +218,16 @@ BackendFEA_CalculiX::Result BackendFEA_CalculiX::runAnalysis() {
 
     if (parsed.success) {
         parsed.rawOutput = QString::fromUtf8(process.readAllStandardOutput());
+        parsed.summary = parsed.summary.isEmpty() ? QStringLiteral("Ran CalculiX at %1").arg(jobName) : parsed.summary;
+        if (!finished) {
+            parsed.summary.append(QStringLiteral(" (timed out; showing partial results)"));
+        }
         return parsed;
     }
 
     Result fallback = synthesizeFallback();
     fallback.rawOutput = QString::fromUtf8(process.readAllStandardError());
+    fallback.summary = QStringLiteral("CalculiX run failed or no result file. Using synthetic field from %1").arg(jobName);
     return fallback;
 }
 

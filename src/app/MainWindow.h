@@ -10,6 +10,7 @@ class OccView;
 class AnalysisLegendOverlay;
 class AegisAssistantDock;
 class PerformanceProfilerDock;
+class LogConsoleDock;
 class ReverseEngineerDock;
 class CamDock;
 class PythonConsoleDock;
@@ -32,6 +33,9 @@ private slots:
     void exportGltfFile();
     void saveProject();
     void loadProject();
+    void submitCalculixJob();
+    void previewCamPath();
+    void reloadAiRules();
     void runAnalysis();
     void regenerateFromReverse(const TopoDS_Shape &shape);
     void evaluateAIAssistant(const QString &prompt);
@@ -40,6 +44,7 @@ private:
     void setupUi();
     void setupDocks();
     void setupToolbar();
+    void setupMenus();
     void loadSamplePart();
     std::vector<AegisAIEngine::PartInsight> buildInsights();
 
@@ -47,6 +52,7 @@ private:
     AnalysisLegendOverlay *m_legend{nullptr};
     AegisAssistantDock *m_aiDock{nullptr};
     PerformanceProfilerDock *m_profilerDock{nullptr};
+    LogConsoleDock *m_logDock{nullptr};
     ReverseEngineerDock *m_reverseDock{nullptr};
     CamDock *m_camDock{nullptr};
     PythonConsoleDock *m_pythonDock{nullptr};

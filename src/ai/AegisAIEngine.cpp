@@ -1,10 +1,14 @@
 #include "AegisAIEngine.h"
 
+#include <QFile>
 #include <QJsonArray>
 #include <QObject>
+#include <QSet>
 #include <algorithm>
 
-AegisAIEngine::AegisAIEngine() = default;
+AegisAIEngine::AegisAIEngine() {
+    loadRules(QStringLiteral(":/ai_rules.json"));
+}
 
 void AegisAIEngine::setSceneInsights(std::vector<PartInsight> insights) {
     m_insights = std::move(insights);
@@ -14,12 +18,51 @@ void AegisAIEngine::setStressSnapshot(const AnalysisManager::Result &result) {
     m_lastResult = result;
 }
 
+static AegisAIEngine::Rule toRule(const QJsonValue &value) {
+    Rule rule;
+    if (!value.isObject()) return rule;
+    const auto obj = value.toObject();
+    rule.trigger = obj.value(QStringLiteral("trigger")).toString();
+    rule.recommendation = obj.value(QStringLiteral("recommendation")).toString();
+    return rule;
+}
+
+bool AegisAIEngine::loadRules(const QString &path) {
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return false;
+    }
+    const auto doc = QJsonDocument::fromJson(f.readAll());
+    if (!doc.isArray()) {
+        return false;
+    }
+
+    m_rules.clear();
+    for (const auto &entry : doc.array()) {
+        Rule rule = toRule(entry);
+        if (!rule.trigger.isEmpty() && !rule.recommendation.isEmpty()) {
+            rule.trigger = rule.trigger.toLower();
+            m_rules.push_back(rule);
+        }
+    }
+    return !m_rules.empty();
+}
+
+QStringList AegisAIEngine::ruleSummaries() const {
+    QStringList summaries;
+    for (const auto &rule : m_rules) {
+        summaries << QObject::tr("'%1' => %2").arg(rule.trigger, rule.recommendation);
+    }
+    return summaries;
+}
+
 AegisAIEngine::Advice AegisAIEngine::evaluate(const QString &prompt) const {
     Advice advice;
 
     QStringList lines;
     lines << QObject::tr("Request: %1").arg(prompt);
     lines << QObject::tr("Parts analyzed: %1").arg(m_insights.size());
+    lines << QObject::tr("Rule set: %1 active rule(s)").arg(m_rules.size());
     if (m_lastResult.success) {
         lines << QObject::tr("Latest FEA: %1 (%.2f to %.2f Pa)")
                      .arg(m_lastResult.summary)
@@ -44,6 +87,14 @@ AegisAIEngine::Advice AegisAIEngine::evaluate(const QString &prompt) const {
     if (!global.isEmpty()) {
         recs << global;
     }
+    const QString lowerPrompt = prompt.toLower();
+    QSet<QString> uniqueRecs = QSet<QString>(recs.begin(), recs.end());
+    for (const auto &rule : m_rules) {
+        if (lowerPrompt.contains(rule.trigger)) {
+            uniqueRecs.insert(rule.recommendation);
+        }
+    }
+    recs = QStringList(uniqueRecs.begin(), uniqueRecs.end());
     if (recs.isEmpty()) {
         recs << QObject::tr("No critical issues detected. Consider adding light chamfers for assembly friendliness.");
     }
